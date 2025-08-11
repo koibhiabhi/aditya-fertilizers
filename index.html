@@ -4,9 +4,7 @@
   <meta charset="utf-8"/>
   <title>Fertilizers Supply Chain Management — Admin</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -21,7 +19,6 @@
     header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-bottom:1px solid rgba(2,6,23,0.04);position:sticky;top:0;z-index:1000}
     .hamburger{width:42px;height:42px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(12,15,20,0.06)}
     .title{font-weight:700;font-size:18px}
-    .subtitle{font-size:12px;color:var(--muted)}
     main{display:flex;gap:18px;padding:18px;align-items:flex-start;flex:1}
     .drawer{width:var(--sidebar-w);min-width:var(--sidebar-w);max-height:calc(100vh - 88px);overflow:auto;padding:14px;border-radius:12px;background:var(--card);box-shadow:0 8px 28px rgba(12,15,20,0.06)}
     .drawer.hide{display:none} .content{flex:1}
@@ -50,6 +47,7 @@
     .badge-purchase{background:var(--accent);color:white;padding:6px 8px;border-radius:8px;font-weight:700}
     .badge-sale{background:var(--danger);color:white;padding:6px 8px;border-radius:8px;font-weight:700}
     .mini{font-size:12px;color:var(--muted)}
+    .flex-row{display:flex;gap:8px;align-items:center}
     @media (max-width:1100px){ .chart-wrap{height:200px} .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:1500;transform:translateX(-120%);transition:transform .22s ease} .drawer.open{transform:translateX(0)} .drawer.hide{display:block} .report-tabs{flex-direction:row;flex-wrap:wrap} }
     /* Loader */
     #globalLoader{ position:fixed; inset:0; background:rgba(255,255,255,0.6); display:none; z-index:99999; align-items:center; justify-content:center; pointer-events:auto; }
@@ -130,11 +128,11 @@
 
 <script>
 /* =========================================================
-   Fertilizers Supply Chain Management (bags-first, drop-in)
-   - All new transactions use bags (bags, pricePerBag, totalValue, party)
-   - Legacy stockKg left untouched (read-only calculations only)
-   - Dashboard: chart + total inventory value + reports
-   - History: grouped ledger view with edit/delete
+   Fertilizers Supply Chain Management (bags-first, weighted avg)
+   - Rebuild material stock & avg by replaying entries (reliable)
+   - Sale entries store costPerBag & costTotal (cost basis)
+   - Reports include profitability
+   - Date pickers for custom date range (default: today)
    ========================================================= */
 
 /* FIREBASE CONFIG (your config) */
@@ -164,20 +162,16 @@ let materialsUnsub = null;
 let entriesUnsub = null;
 let lastMaterials = []; // materials for current company
 let lastEntries = [];   // entries for current company (recent)
-/* pre-calc */
 let cachedTotalInventoryValue = 0;
 
 /* Loader */
 const loader = document.getElementById('globalLoader');
 const loaderTitle = document.getElementById('loaderTitle');
 const loaderText = document.getElementById('loaderText');
-function showLoader(title='Working…', text='Please wait'){
-  loaderTitle.textContent = title; loaderText.textContent = text; loader.style.display = 'flex';
-  loader.setAttribute('aria-hidden', 'false');
-}
-function hideLoader(){ loader.style.display = 'none'; loader.setAttribute('aria-hidden', 'true'); }
+function showLoader(title='Working…', text='Please wait'){ loaderTitle.textContent = title; loaderText.textContent = text; loader.style.display = 'flex'; loader.setAttribute('aria-hidden','false'); }
+function hideLoader(){ loader.style.display = 'none'; loader.setAttribute('aria-hidden','true'); }
 
-/* Utilities */
+/* Utils */
 function fmtDate(ts){ if(!ts) return '-'; if(ts.toDate) return ts.toDate().toLocaleString('en-IN'); if(ts.seconds) return new Date(ts.seconds*1000).toLocaleString('en-IN'); return new Date(ts).toLocaleString('en-IN'); }
 function toINR(x){ if(x===undefined||x===null||x==='') return '-'; return '₹' + Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 function normalizeName(n){ return (n || '').trim().toLowerCase(); }
@@ -187,11 +181,8 @@ function sameDay(a,b){ return dateOnly(a).getTime() === dateOnly(b).getTime(); }
 /* Modal helpers */
 function showModal(html){
   const root = document.getElementById('modalRoot');
-  root.innerHTML =
-    `<div class="modal-backdrop" id="modalBackdrop">
-       <div class="modal">${html}</div>
-     </div>`;
-  document.getElementById('modalBackdrop').addEventListener('click',(e)=>{ if(e.target.id === 'modalBackdrop') closeModal(); });
+  root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop"><div class="modal">${html}</div></div>`;
+  document.getElementById('modalBackdrop').addEventListener('click',(e)=>{ if(e.target.id==='modalBackdrop') closeModal(); });
 }
 function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
 
@@ -202,10 +193,7 @@ auth.onAuthStateChanged(user=>{
 });
 async function autoSignIn(){ if(!AUTO_SIGNIN) return; try{ showLoader('Signing in…','Signing in admin account'); await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PWD); }catch(err){ alert('Auto sign-in failed: ' + err.message);} finally{ hideLoader(); } }
 
-/* ---------- Backwards-compat read helpers ----------
-   - authoritative: stockBags (number)
-   - fallback/display-only: infer bags from stockKg and kgPerBag (DO NOT overwrite)
---------------------------------------------------------------------------*/
+/* ---------- Read helpers (legacy kg tolerated) ---------- */
 function readMaterialStockBags(mat){
   if(mat.stockBags !== undefined && mat.stockBags !== null) return Number(mat.stockBags) || 0;
   if(mat.stockKg !== undefined && mat.kgPerBag) {
@@ -216,9 +204,10 @@ function readMaterialStockBags(mat){
 }
 function getMaterialPricePerBag(mat){
   if(mat.pricePerBag !== undefined && mat.pricePerBag !== null) return Number(mat.pricePerBag) || null;
+  // fallback from lastEntries if any
   const hist = lastEntries
     .filter(e => e.materialId === mat.id && e.pricePerBag)
-    .sort((a,b)=> {
+    .sort((a,b)=>{
       const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : (new Date(a.createdAt)).getTime();
       const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : (new Date(b.createdAt)).getTime();
       return bT - aT;
@@ -227,7 +216,83 @@ function getMaterialPricePerBag(mat){
   return null;
 }
 
-/* ---------- Dedupe (kept) ---------- */
+/* ---------- Rebuild material from entries (sequential replay) ----------
+   - Fetches all entries for the material ordered by createdAt asc
+   - Replays each one, maintaining stock and weighted-average price
+   - Updates material doc with final stockBags & pricePerBag
+   - Updates sale entries with costPerBag & costTotal (cost basis at time of sale)
+   - Also ensures purchase entries have totalValue stored
+   This ensures correctness even after edits/deletes.
+-----------------------------------------------------------------------*/
+async function rebuildMaterialFromEntries(materialId){
+  if(!currentCompanyId || !materialId) return;
+  const companyRef = db.collection('companies').doc(currentCompanyId);
+  const matsRef = companyRef.collection('materials').doc(materialId);
+  const entriesRef = companyRef.collection('entries');
+  showLoader('Rebuilding material…','Reconciling stock & avg price');
+  try{
+    // fetch entries for this material in chronological order (oldest first)
+    const snap = await entriesRef.where('materialId','==',materialId).orderBy('createdAt','asc').get();
+    // start from zero or legacy stock? We'll rebuild from entries alone for authoritative result.
+    let stock = 0; // bags
+    let avg = null; // price per bag (weighted average)
+    // We'll batch updates for entries and update material once at end
+    const batch = db.batch();
+    snap.forEach(doc => {
+      // (we'll process below after building array)
+    });
+    // Convert to array for async processing
+    const entries = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+    for(const eObj of entries){
+      const e = eObj.data;
+      // ensure numeric bags
+      const bags = Number(e.bags || 0);
+      const price = (e.pricePerBag !== undefined && e.pricePerBag !== null) ? Number(e.pricePerBag) : null;
+      if(e.type === 'purchase'){
+        // purchase: update avg using weighted formula
+        const oldStock = stock;
+        const oldAvg = avg;
+        if(oldStock <= 0 || oldAvg === null || oldAvg === undefined) {
+          // no prior stock -> avg = price (if provided), else keep null
+          avg = price !== null ? price : (avg === null ? null : avg);
+        } else {
+          // if price provided, compute weighted avg; if price missing, keep old avg
+          if(price !== null) {
+            const numerator = (oldStock * oldAvg) + (bags * price);
+            const denominator = (oldStock + bags);
+            avg = denominator > 0 ? (numerator / denominator) : oldAvg;
+          }
+        }
+        stock = stock + bags;
+        // ensure totalValue stored for purchase
+        const totalValue = bags * (price || 0);
+        batch.update(entriesRef.doc(eObj.id), { totalValue: totalValue || 0, pricePerBag: price || null });
+      } else if(e.type === 'sale'){
+        // sale: cost basis is current avg (before sale)
+        const costPerBag = avg !== null ? avg : 0;
+        const costTotal = bags * costPerBag;
+        // store costPerBag & costTotal in sale entry for later profit calcs
+        batch.update(entriesRef.doc(eObj.id), { costPerBag: costPerBag || 0, costTotal: costTotal || 0, pricePerBag: e.pricePerBag || null, totalValue: (Number(e.totalValue)|| (bags * (e.pricePerBag || 0))) });
+        stock = stock - bags;
+        // note: avg stays same on sale
+      } else {
+        // unknown type: leave
+      }
+    }
+    // commit batch of entry updates
+    if(!snap.empty) await batch.commit();
+    // ensure stock not negative (allow zero or positive; if negative, keep as is but warn)
+    // update material doc
+    const matPatch = { stockBags: Math.round(stock * 100) / 100, pricePerBag: (avg !== null ? Math.round(avg * 100) / 100 : null), updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    await matsRef.update(matPatch);
+  }catch(err){
+    console.error('rebuildMaterialFromEntries failed', err);
+  } finally {
+    hideLoader();
+  }
+}
+
+/* ---------- Dedupe helpers (kept) ---------- */
 async function dedupeCompanies(){
   try{
     const snap = await db.collection('companies').get();
@@ -302,7 +367,7 @@ async function dedupeMaterialsForCompany(companyId){
   }catch(err){ console.error('dedupeMaterialsForCompany failed', err); } finally { hideLoader(); }
 }
 
-/* ---------- Load companies / switch ---------- */
+/* ---------- Companies menu ---------- */
 async function loadCompaniesToMenu(){
   const sel = document.getElementById('companySelect');
   sel.innerHTML = '';
@@ -354,10 +419,8 @@ function startCompanyListeners(companyId){
   const entsRef = db.collection('companies').doc(companyId).collection('entries').orderBy('createdAt','desc').limit(2000);
   entriesUnsub = entsRef.onSnapshot(snapshot=>{
     lastEntries = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    // refresh history if open
     const modalRoot = document.getElementById('modalRoot');
     if(modalRoot.innerHTML && modalRoot.innerHTML.includes('History —')) renderHistory();
-    // whenever entries change, update dashboard (price derivation)
     renderMaterials(lastMaterials);
   }, err => { console.error('entries onSnapshot', err); alert('Listener error (entries): ' + err.message); });
 
@@ -367,12 +430,12 @@ function startCompanyListeners(companyId){
   });
 }
 
-/* ---------- Dashboard rendering (chart + reports + total) ---------- */
+/* ---------- Dashboard rendering ---------- */
 function renderEmptyDashboard(){ document.getElementById('dashboardArea').innerHTML = '<div class="card tiny muted">No company selected / no data.</div>'; }
 
 function computeMaterialDerived(mat){
   const bags = readMaterialStockBags(mat);
-  const pricePerBag = getMaterialPricePerBag(mat);
+  const pricePerBag = getMaterialPricePerBag(mat) || null;
   const stockValue = (pricePerBag ? (bags * Number(pricePerBag)) : 0);
   const sales = lastEntries.filter(e => e.materialId === mat.id && e.type === 'sale').reduce((acc, e) => acc + (Number(e.totalValue || 0)), 0);
   return { bags, pricePerBag, stockValue, sales };
@@ -381,7 +444,6 @@ function computeMaterialDerived(mat){
 function renderMaterials(materials){
   const area = document.getElementById('dashboardArea'); area.innerHTML = '';
 
-  // Header card
   const header = document.createElement('div'); header.className = 'card';
   header.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -390,7 +452,6 @@ function renderMaterials(materials){
     </div>`;
   area.appendChild(header);
 
-  // Materials grid
   const gridWrap = document.createElement('div'); gridWrap.className='card';
   const grid = document.createElement('div'); grid.className='materials';
   for(const m of materials){
@@ -424,7 +485,6 @@ function renderMaterials(materials){
   gridWrap.appendChild(grid);
   area.appendChild(gridWrap);
 
-  // Low stock card
   const lows = materials.filter(m => (computeMaterialDerived(m).bags || 0) <= (m.lowStockBags || 0));
   if(lows.length){
     const lowCard = document.createElement('div'); lowCard.className = 'card';
@@ -442,7 +502,7 @@ function renderMaterials(materials){
     area.appendChild(lowCard);
   }
 
-  // Chart + Reports layout
+  // Chart + Reports
   const splitCard = document.createElement('div'); splitCard.className = 'card';
   splitCard.innerHTML = `
     <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
@@ -455,17 +515,29 @@ function renderMaterials(materials){
         <div style="margin-top:12px;font-weight:700">Total inventory value: <span id="totalInventoryValue">—</span></div>
       </div>
 
-      <div style="width:320px;min-width:260px;">
+      <div style="width:340px;min-width:260px;">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="font-weight:700">Reports</div>
-          <div class="tiny muted">Select period</div>
+          <div class="tiny muted">Choose range</div>
         </div>
-        <div style="margin-top:10px" id="reportsContainer"></div>
+        <div style="margin-top:10px">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div style="flex:1"><label>From</label><input id="reportFrom" type="date" /></div>
+            <div style="flex:1"><label>To</label><input id="reportTo" type="date" /></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button id="btnReportToday" class="btn ghost">Today</button>
+            <button id="btnReportWeek" class="btn ghost">7 days</button>
+            <button id="btnReportMonth" class="btn ghost">30 days</button>
+            <button id="btnReportApply" class="btn">Apply</button>
+          </div>
+          <div id="reportsResult" style="margin-top:12px"></div>
+        </div>
       </div>
     </div>`;
   area.appendChild(splitCard);
 
-  // Chart data
+  // chart data
   const labels = materials.map(m => m.name);
   const data = materials.map(m => {
     const d = computeMaterialDerived(m);
@@ -482,95 +554,117 @@ function renderMaterials(materials){
     });
   }, 20);
 
-  // total inventory value
   const total = data.reduce((a,b)=>a+Number(b||0),0);
   cachedTotalInventoryValue = Math.round(total*100)/100;
   document.getElementById('totalInventoryValue').textContent = toINR(cachedTotalInventoryValue);
 
-  // reports
+  // set default date pickers to today
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('reportFrom').value = today;
+  document.getElementById('reportTo').value = today;
+
+  // wire report buttons
+  document.getElementById('btnReportToday').onclick = ()=>{ document.getElementById('reportFrom').value = today; document.getElementById('reportTo').value = today; renderReports(); };
+  document.getElementById('btnReportWeek').onclick = ()=>{
+    const to = new Date(); const from = new Date(); from.setDate(from.getDate()-6);
+    document.getElementById('reportFrom').value = from.toISOString().slice(0,10); document.getElementById('reportTo').value = to.toISOString().slice(0,10); renderReports();
+  };
+  document.getElementById('btnReportMonth').onclick = ()=>{
+    const to = new Date(); const from = new Date(); from.setDate(from.getDate()-29);
+    document.getElementById('reportFrom').value = from.toISOString().slice(0,10); document.getElementById('reportTo').value = to.toISOString().slice(0,10); renderReports();
+  };
+  document.getElementById('btnReportApply').onclick = renderReports;
+
+  // initial report render
   renderReports();
 }
 
-/* ---------- Reports: Daily / Weekly / Monthly / All ---------- */
-function periodBounds(period){
-  const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1); // exclusive end at next day 00:00
-  let start;
-  if(period === 'today'){ start = dateOnly(now); }
-  else if(period === 'week'){ // last 7 days inclusive
-    const d = new Date(now); d.setDate(d.getDate() - 6); start = dateOnly(d);
-  } else if(period === 'month'){
-    const d = new Date(now); d.setDate(d.getDate() - 29); start = dateOnly(d);
-  } else { // all
-    start = new Date(0);
-  }
-  return { start, end };
+/* ---------- Reports & profit calculations ---------- */
+function parseDateInput(val){
+  if(!val) return null;
+  const t = new Date(val);
+  t.setHours(0,0,0,0);
+  return t;
 }
-function filterEntriesByPeriod(period){
-  const { start, end } = periodBounds(period);
+function entriesBetween(fromDate, toDate){
+  if(!fromDate || !toDate) return [];
+  // toDate inclusive: set end = toDate + 1 day exclusive
+  const start = new Date(fromDate); start.setHours(0,0,0,0);
+  const end = new Date(toDate); end.setHours(24,0,0,0);
   return lastEntries.filter(e => {
     if(!e.createdAt) return false;
     const t = e.createdAt.toDate ? e.createdAt.toDate() : new Date(e.createdAt);
     return t >= start && t < end;
   });
 }
-function aggregateForPeriod(period){
-  const entries = filterEntriesByPeriod(period);
-  const purchases = entries.filter(e => e.type === 'purchase');
-  const sales = entries.filter(e => e.type === 'sale');
-  const sumBagsPurchased = purchases.reduce((s,e)=>s + Number(e.bags||0), 0);
-  const sumBagsSold = sales.reduce((s,e)=>s + Number(e.bags||0), 0);
-  const sumValuePurchased = purchases.reduce((s,e)=>s + Number(e.totalValue||0), 0);
-  const sumValueSold = sales.reduce((s,e)=>s + Number(e.totalValue||0), 0);
-  const netBagsChange = sumBagsPurchased - sumBagsSold;
-  const netValueChange = sumValuePurchased - sumValueSold;
-  return {
-    sumBagsPurchased, sumBagsSold, sumValuePurchased, sumValueSold, netBagsChange, netValueChange
-  };
-}
 function renderReports(){
-  const container = document.getElementById('reportsContainer');
-  container.innerHTML = '';
-  const periods = ['today','week','month','all'];
-  periods.forEach(p=>{
-    const title = (p==='today') ? 'Daily' : (p==='week' ? 'Weekly' : (p==='month' ? 'Monthly' : 'All'));
-    const ag = aggregateForPeriod(p);
-    const card = document.createElement('div'); card.className = 'report-card';
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">${title}</div><div class="mini">period: ${p}</div></div>
-      <div style="margin-top:8px" class="mini">Purchases: ${ag.sumBagsPurchased} bags • ${toINR(ag.sumValuePurchased)}</div>
-      <div style="margin-top:6px" class="mini">Sales: ${ag.sumBagsSold} bags • ${toINR(ag.sumValueSold)}</div>
-      <div style="margin-top:6px;font-weight:700">Net: ${ag.netBagsChange} bags • ${toINR(ag.netValueChange)}</div>
-    `;
-    container.appendChild(card);
-  });
+  const fromVal = document.getElementById('reportFrom').value;
+  const toVal = document.getElementById('reportTo').value;
+  const from = parseDateInput(fromVal);
+  const to = parseDateInput(toVal);
+  const container = document.getElementById('reportsResult');
+  if(!from || !to){ container.innerHTML = '<div class="tiny muted">Select valid From/To dates</div>'; return; }
+  const slice = entriesBetween(from,to);
+  // purchases
+  const purchases = slice.filter(e => e.type === 'purchase');
+  const sales = slice.filter(e => e.type === 'sale');
+  const sumBagsPurchased = purchases.reduce((s,e)=>s + Number(e.bags||0), 0);
+  const sumValuePurchased = purchases.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  const sumBagsSold = sales.reduce((s,e)=>s + Number(e.bags||0), 0);
+  const sumValueSold = sales.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  // cost basis for sold items: sum of costTotal fields on sales (these are computed by rebuild routine)
+  const costBasisSold = sales.reduce((s,e)=>s + Number(e.costTotal||0), 0);
+  const profit = sumValueSold - costBasisSold;
+  const profitPct = (sumValueSold > 0) ? (profit / sumValueSold * 100) : 0;
+  // net stock change (purchases - sales)
+  const netBagsChange = sumBagsPurchased - sumBagsSold;
+  // total inventory value as of now (cached)
+  const totalInv = cachedTotalInventoryValue;
+  // show small summary
+  container.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px">Report (${from.toLocaleDateString('en-IN')} → ${to.toLocaleDateString('en-IN')})</div>
+    <div class="mini">Purchases: ${sumBagsPurchased} bags • ${toINR(sumValuePurchased)}</div>
+    <div class="mini">Sales: ${sumBagsSold} bags • ${toINR(sumValueSold)}</div>
+    <div class="mini">Cost basis of sold items: ${toINR(costBasisSold)}</div>
+    <div style="margin-top:6px;font-weight:700">Profit: ${toINR(profit)} (${profitPct ? (profitPct.toFixed(2) + '%') : '—'})</div>
+    <div class="mini" style="margin-top:8px">Net stock change: ${netBagsChange} bags</div>
+    <div class="mini" style="margin-top:8px">Total inventory value (now): ${toINR(totalInv)}</div>
+  `;
 }
 
-/* ---------- Today quick modal ---------- */
+/* ---------- Today modal (uses report logic) ---------- */
 function openTodayModal(){
   if(!currentCompanyId) return alert('Select a company first');
-  // today's entries & stock snapshot
-  const todayEntries = filterEntriesByPeriod('today');
-  const purchases = todayEntries.filter(e=>e.type==='purchase').reduce((s,e)=>({ bags: s.bags+Number(e.bags||0), value: s.value+Number(e.totalValue||0)}), {bags:0,value:0});
-  const sales = todayEntries.filter(e=>e.type==='sale').reduce((s,e)=>({ bags: s.bags+Number(e.bags||0), value: s.value+Number(e.totalValue||0)}), {bags:0,value:0});
-  // current stock snapshot (from lastMaterials)
-  const stocks = lastMaterials.map(m => {
+  const today = new Date();
+  const td = today.toISOString().slice(0,10);
+  // temporarily compute today's report
+  const from = parseDateInput(td);
+  const to = parseDateInput(td);
+  const slice = entriesBetween(from,to);
+  const purchases = slice.filter(e=>e.type==='purchase');
+  const sales = slice.filter(e=>e.type==='sale');
+  const sumPurch = purchases.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  const sumSales = sales.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  const costBasisSold = sales.reduce((s,e)=>s + Number(e.costTotal||0), 0);
+  const profit = sumSales - costBasisSold;
+  const profitPct = (sumSales > 0) ? (profit / sumSales * 100) : 0;
+  const stocks = lastMaterials.map(m=>{
     const d = computeMaterialDerived(m);
-    return { name: m.name, bags: d.bags, stockValue: d.stockValue, pricePerBag: d.pricePerBag };
+    return { name: m.name, bags: d.bags, stockValue: d.stockValue };
   });
-  const topStocks = stocks.slice(0,10).map(s=>`<div style="display:flex;justify-content:space-between"><div>${escapeHtml(s.name)} • ${s.bags} bags</div><div>${toINR(s.stockValue)}</div></div>`).join('');
+  const top = stocks.slice(0,8).map(s => `<div style="display:flex;justify-content:space-between"><div>${escapeHtml(s.name)} • ${s.bags} bags</div><div>${toINR(s.stockValue)}</div></div>`).join('');
   showModal(`
     <div style="font-weight:700">Today — ${document.getElementById('mainCompanyName').textContent}</div><hr>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:240px">
         <div style="font-weight:700">Today's summary</div>
-        <div class="mini" style="margin-top:8px">Purchases: ${purchases.bags} bags • ${toINR(purchases.value)}</div>
-        <div class="mini" style="margin-top:6px">Sales: ${sales.bags} bags • ${toINR(sales.value)}</div>
-        <div class="mini" style="margin-top:6px">Net change: ${purchases.bags - sales.bags} bags • ${toINR(purchases.value - sales.value)}</div>
+        <div class="mini" style="margin-top:8px">Purchases: ${toINR(sumPurch)}</div>
+        <div class="mini" style="margin-top:6px">Sales: ${toINR(sumSales)}</div>
+        <div class="mini" style="margin-top:6px">Profit: ${toINR(profit)} ${profitPct ? '(' + profitPct.toFixed(2) + '%)' : ''}</div>
       </div>
       <div style="flex:1;min-width:240px">
-        <div style="font-weight:700">Top stock items</div>
-        <div class="mini" style="margin-top:8px">${topStocks || '<div class="tiny muted">No stock</div>'}</div>
+        <div style="font-weight:700">Top stocks</div>
+        <div class="mini" style="margin-top:8px">${top || '<div class="tiny muted">No stock</div>'}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="today_close">Close</button></div>
@@ -578,39 +672,36 @@ function openTodayModal(){
   document.getElementById('today_close').onclick = closeModal;
 }
 
-/* ---------- Add entry (bags) ---------- */
+/* ---------- Add Entry (purchase / sale) ----------
+   - For purchases: create entry with totalValue, then rebuild material to compute avg & stock
+   - For sales: create entry with totalValue and cost fields will be set by rebuild (costPerBag & costTotal)
+   - Using rebuild after write guarantees consistency and historical cost info
+------------------------------------------------------------------------*/
 async function addEntryBags(materialId, type, bagsCount, pricePerBag, party, note){
   if(!currentCompanyId) return alert('Select a company first');
   if(!materialId || bagsCount <= 0) return alert('Invalid input');
   const companyRef = db.collection('companies').doc(currentCompanyId);
-  const materialRef = companyRef.collection('materials').doc(materialId);
   const entriesCol = companyRef.collection('entries');
   showLoader(type==='purchase' ? 'Saving purchase…' : 'Saving sale…', 'Saving to remote database');
   try{
-    await db.runTransaction(async tx=>{
-      const matSnap = await tx.get(materialRef);
-      if(!matSnap.exists) throw new Error('Material missing');
-      const mat = matSnap.data();
-      const currentStockBags = (mat.stockBags !== undefined && mat.stockBags !== null) ? Number(mat.stockBags || 0) : (mat.stockKg && mat.kgPerBag ? (Number(mat.stockKg) / Number(mat.kgPerBag || 1)) : 0);
-      const newStock = (type === 'purchase') ? (currentStockBags + bagsCount) : (currentStockBags - bagsCount);
-      if(newStock < -0.0001) throw new Error('Not enough stock for this sale');
-      const totalValue = Number(bagsCount) * (pricePerBag ? Number(pricePerBag) : 0);
-      const entryRef = entriesCol.doc();
-      tx.set(entryRef, {
-        type, materialId, bags: bagsCount, unit: 'bags', pricePerBag: pricePerBag || null, totalValue: totalValue || 0,
-        party: party || '', note: note || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: (auth.currentUser && auth.currentUser.uid) || null
-      });
-      tx.update(materialRef, { stockBags: newStock, pricePerBag: pricePerBag || mat.pricePerBag || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      tx.update(companyRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const totalValue = Number(bagsCount) * (pricePerBag ? Number(pricePerBag) : 0);
+    const entryRef = entriesCol.doc();
+    await entryRef.set({
+      type, materialId, bags: bagsCount, unit: 'bags',
+      pricePerBag: pricePerBag || null, totalValue: totalValue || 0,
+      party: party || '', note: note || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: (auth.currentUser && auth.currentUser.uid) || null
     });
-  }catch(err){ alert('Save failed: ' + err.message); console.error(err); }finally{ hideLoader(); }
+    // now rebuild material from entries to update material.stockBags and material.pricePerBag and write cost basis to sales
+    await rebuildMaterialFromEntries(materialId);
+  }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
 /* Quick Purchase / Sale modals */
 function openQuickPurchase(materialId, materialName){
   showModal(`
     <div style="font-weight:700">Add Purchase — ${escapeHtml(materialName)}</div><hr>
-    <label>Number of bags</label><input id="pq_bags" type="number" min="0.01" step="0.01" placeholder="e.g. 1" />
+    <label>Number of bags</label><input id="pq_bags" type="number" min="0.01" step="0.01" placeholder="e.g. 6" />
     <label>Price per bag</label><input id="pq_price" type="number" step="0.01" placeholder="e.g. 1380" />
     <label>Bought from</label><input id="pq_party" placeholder="Supplier name / place" />
     <label>Note</label><input id="pq_note" />
@@ -632,7 +723,7 @@ function openQuickPurchase(materialId, materialName){
 function openQuickSale(materialId, materialName){
   showModal(`
     <div style="font-weight:700">Add Sale — ${escapeHtml(materialName)}</div><hr>
-    <label>Number of bags</label><input id="ps_bags" type="number" min="0.01" step="0.01" placeholder="e.g. 1" />
+    <label>Number of bags</label><input id="ps_bags" type="number" min="0.01" step="0.01" placeholder="e.g. 2" />
     <label>Price per bag</label><input id="ps_price" type="number" step="0.01" placeholder="e.g. 1500" />
     <label>Sold to</label><input id="ps_party" placeholder="Customer name / place" />
     <label>Note</label><input id="ps_note" />
@@ -813,13 +904,15 @@ async function openMaterialEditorDialog(materialId){
         await matsRef.doc(materialId).update({
           name: newName, name_lower: nameNorm, lowStockBags: low, kgPerBag: kgPerBag, pricePerBag: price || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        // after manual price change, we might want to rebuild to keep entries' cost consistent — run rebuild
+        await rebuildMaterialFromEntries(materialId);
         closeModal(); await renderManageMaterials(); await loadCompaniesToMenu();
       }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
     };
   }catch(err){ alert('Open edit failed: ' + err.message); console.error(err); }
 }
 
-/* ---------- History ledger (grouped by date, readable) ---------- */
+/* ---------- History ledger ---------- */
 function openHistoryModal(){
   if(!currentCompanyId) return alert('Select a company first in the admin menu');
   showModal(`
@@ -835,7 +928,7 @@ function openHistoryModal(){
 function renderHistory(){
   const container = document.getElementById('historyContainer');
   if(!container) return;
-  // Group entries by date (descending)
+  // Group entries by date descending
   const grouped = {};
   lastEntries.forEach(e=>{
     const d = e.createdAt ? (e.createdAt.toDate ? e.createdAt.toDate() : new Date(e.createdAt)) : new Date();
@@ -862,7 +955,8 @@ function renderHistory(){
               <div style="min-width:200px">
                 <div style="font-weight:700">${escapeHtml(matName)}</div>
                 <div class="mini">${Number(e.bags||0)} bags • ${e.pricePerBag ? toINR(e.pricePerBag) + ' /bag' : '—'} • ${toINR(e.totalValue||0)}</div>
-                <div class="mini">${e.party ? (isPurchase ? 'Bought from: ' : 'Sold to: ') + escapeHtml(e.party) : ''}</div>
+                <div class="mini">${isPurchase ? 'Bought from: ' : 'Sold to: '} ${e.party ? escapeHtml(e.party) : '—'}</div>
+                ${!isPurchase ? `<div class="mini">Cost basis: ${toINR(e.costPerBag||0) + ' /bag (' + toINR(e.costTotal||0) + ')'}</div>` : ''}
                 <div class="mini">${e.note ? escapeHtml(e.note) : ''}</div>
               </div>
             </div>
@@ -882,7 +976,7 @@ function renderHistory(){
   container.innerHTML = html;
 }
 
-/* Edit entry dialog (bags) */
+/* ---------- Edit entry: robust approach (rebuild after change) ---------- */
 async function openEditEntryDialog(entryId){
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   const eDoc = await entryRef.get();
@@ -911,67 +1005,41 @@ async function openEditEntryDialog(entryId){
     if(newBags <= 0) return alert('Invalid number of bags');
     showLoader('Updating entry…','Applying changes to remote DB');
     try{
-      await db.runTransaction(async tx=>{
-        const entrySnap = await tx.get(entryRef); if(!entrySnap.exists) throw new Error('Entry vanished');
-        const old = entrySnap.data();
-        const oldMatRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(old.materialId);
-        const newMatRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(newMatId);
-        const [oldMatSnap, newMatSnap] = await Promise.all([tx.get(oldMatRef), tx.get(newMatRef)]);
-        if(!oldMatSnap.exists || !newMatSnap.exists) throw new Error('Material missing');
-
-        const oldQty = Number(old.bags || 0);
-        const newQty = newBags;
-        const oldMatCurrent = (oldMatSnap.data().stockBags !== undefined && oldMatSnap.data().stockBags !== null) ? Number(oldMatSnap.data().stockBags || 0) : (oldMatSnap.data().stockKg && oldMatSnap.data().kgPerBag ? (Number(oldMatSnap.data().stockKg) / Number(oldMatSnap.data().kgPerBag || 1)) : 0);
-        const newMatCurrent = (newMatSnap.data().stockBags !== undefined && newMatSnap.data().stockBags !== null) ? Number(newMatSnap.data().stockBags || 0) : (newMatSnap.data().stockKg && newMatSnap.data().kgPerBag ? (Number(newMatSnap.data().stockKg) / Number(newMatSnap.data().kgPerBag || 1)) : 0);
-
-        const oldMatAfterReverse = (old.type === 'purchase') ? (oldMatCurrent - oldQty) : (oldMatCurrent + oldQty);
-        if(oldMatAfterReverse < -0.0001) throw new Error('Cannot reverse old entry (negative stock)');
-        const newMatAfterApply = (newType === 'purchase') ? (newMatCurrent + newQty) : (newMatCurrent - newQty);
-        if(newMatAfterApply < -0.0001) throw new Error('Not enough stock for this sale on new material');
-
-        tx.update(oldMatRef, { stockBags: oldMatAfterReverse, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-        tx.update(newMatRef, { stockBags: newMatAfterApply, pricePerBag: newPrice || newMatSnap.data().pricePerBag || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-        const totalValue = newQty * (newPrice || 0);
-        tx.update(entryRef, { type: newType, materialId: newMatId, bags: newQty, pricePerBag: newPrice || null, totalValue: totalValue || 0, party: newParty || '', note: newNote, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-        tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      // update the entry doc
+      await entryRef.update({
+        type: newType, materialId: newMatId, bags: newBags, pricePerBag: newPrice || null,
+        party: newParty || '', note: newNote || '', updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      alert('Entry updated'); closeModal();
+      // after changing an entry, rebuild the affected materials (both old and new if changed)
+      await rebuildMaterialFromEntries(newMatId);
+      if(newMatId !== e.materialId) await rebuildMaterialFromEntries(e.materialId);
+      alert('Entry updated');
+      closeModal();
     }catch(err){ alert('Update failed: ' + err.message); console.error(err); } finally { hideLoader(); }
   };
 }
 
-/* Delete entry (adjust bags) */
+/* Delete entry (then rebuild material) */
 async function deleteEntry(entryId){
   if(!confirm('Delete this entry? This will adjust the material stock accordingly.')) return;
   showLoader('Deleting entry…','Adjusting stock and removing entry');
-  const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   try{
-    await db.runTransaction(async tx=>{
-      const esnap = await tx.get(entryRef); if(!esnap.exists) throw new Error('Entry not found');
-      const e = esnap.data();
-      const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(e.materialId);
-      const matSnap = await tx.get(matRef); if(!matSnap.exists) throw new Error('Material not found');
-      const mat = matSnap.data();
-      const qty = Number(e.bags || 0);
-      const current = (mat.stockBags !== undefined && mat.stockBags !== null) ? Number(mat.stockBags || 0) : (mat.stockKg && mat.kgPerBag ? (Number(mat.stockKg) / Number(mat.kgPerBag || 1)) : 0);
-      const newStock = (e.type === 'purchase') ? (current - qty) : (current + qty);
-      if(newStock < -0.0001) throw new Error('Operation would lead to negative stock');
-      tx.update(matRef, { stockBags: newStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      tx.delete(entryRef);
-      tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-    });
+    const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
+    const edoc = await entryRef.get();
+    if(!edoc.exists) throw new Error('Entry not found');
+    const e = edoc.data();
+    await entryRef.delete();
+    await rebuildMaterialFromEntries(e.materialId);
     alert('Deleted and stock adjusted');
   }catch(err){ alert('Delete failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
-/* ---------- Export CSV (bags) ---------- */
+/* ---------- Export CSV (bags & cost info) ---------- */
 document.getElementById('menuExport').addEventListener('click', async ()=>{
   showLoader('Exporting data…','Preparing CSV for download');
   try{
     const rows = [];
-    rows.push(['companyId','companyName','materialId','materialName','materialStockBags','materialLowBags','materialKgPerBag','materialPricePerBag','entryId','entryType','entryBags','entryUnit','pricePerBag','totalValue','party','note','entryCreatedAt']);
+    rows.push(['companyId','companyName','materialId','materialName','materialStockBags','materialLowBags','materialKgPerBag','materialPricePerBag','entryId','entryType','entryBags','entryUnit','pricePerBag','totalValue','costPerBag','costTotal','party','note','entryCreatedAt']);
     const companiesSnap = await db.collection('companies').orderBy('name').get();
     for(const cdoc of companiesSnap.docs){
       const cid = cdoc.id; const cname = cdoc.data().name;
@@ -981,7 +1049,7 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
       const entSnap = await cdoc.ref.collection('entries').orderBy('createdAt','desc').get();
       if(entSnap.empty){
         matsSnap.forEach(m => {
-          rows.push([cid, cname, m.id, m.data().name, (m.data().stockBags||''), (m.data().lowStockBags||''), (m.data().kgPerBag||''), (m.data().pricePerBag||''), '', '', '', '', '', '', '', '', '']);
+          rows.push([cid, cname, m.id, m.data().name, (m.data().stockBags||''), (m.data().lowStockBags||''), (m.data().kgPerBag||''), (m.data().pricePerBag||''), '', '', '', '', '', '', '', '', '', '']);
         });
       } else {
         entSnap.forEach(e => {
@@ -989,7 +1057,7 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
           const mat = matMap[ed.materialId] || {};
           rows.push([
             cid, cname, ed.materialId || '', mat.name || '', mat.stockBags || '', mat.lowStockBags || '', mat.kgPerBag || '', mat.pricePerBag || '',
-            e.id, ed.type || '', ed.bags || '', ed.unit || '', ed.pricePerBag || '', ed.totalValue || '', ed.party || '', ed.note ? ed.note.replace(/\r?\n|\r/g,' ') : '', ed.createdAt ? (ed.createdAt.toDate ? ed.createdAt.toDate().toLocaleString('en-IN') : ed.createdAt) : ''
+            e.id, ed.type || '', ed.bags || '', ed.unit || '', ed.pricePerBag || '', ed.totalValue || '', ed.costPerBag || '', ed.costTotal || '', ed.party || '', ed.note ? ed.note.replace(/\r?\n|\r/g,' ') : '', ed.createdAt ? (ed.createdAt.toDate ? ed.createdAt.toDate().toLocaleString('en-IN') : ed.createdAt) : ''
           ]);
         });
       }
@@ -1003,13 +1071,13 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
     }).join(',')).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'supply_export_bags.csv'; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'supply_export_bags_with_costs.csv'; document.body.appendChild(a); a.click(); a.remove();
     alert('Export ready — file downloaded (CSV). You can open it in Excel.');
   }catch(err){ alert('Export failed: ' + err.message); console.error(err); }
   finally{ hideLoader(); }
 });
 
-/* ---------- Small helpers & wiring ---------- */
+/* ---------- Helpers & wiring ---------- */
 function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 const drawer = document.getElementById('drawer');
@@ -1023,6 +1091,7 @@ function closeDrawer(){ if(window.innerWidth <= 900) drawer.classList.remove('op
 
 document.getElementById('btnHistory').addEventListener('click', ()=> openHistoryModal());
 document.getElementById('btnManage').addEventListener('click', ()=> openManageModal());
+document.getElementById('btnToday').addEventListener('click', ()=> openTodayModal());
 
 document.getElementById('btnPurchase').addEventListener('click', ()=> {
   if(!currentCompanyId) return alert('Select a company in the admin menu');
@@ -1038,8 +1107,11 @@ document.getElementById('btnPurchase').addEventListener('click', ()=> {
   `);
   document.getElementById('g_cancel').onclick = closeModal;
   document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value; const bags = Number(document.getElementById('g_bags').value);
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const party = document.getElementById('g_party').value || ''; const note = document.getElementById('g_note').value || '';
+    const mid = document.getElementById('g_mat').value;
+    const bags = Number(document.getElementById('g_bags').value);
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
+    const party = document.getElementById('g_party').value || '';
+    const note = document.getElementById('g_note').value || '';
     await addEntryBags(mid,'purchase',bags,price,party,note); closeModal();
   };
 });
@@ -1058,15 +1130,16 @@ document.getElementById('btnSale').addEventListener('click', ()=> {
   `);
   document.getElementById('g_cancel').onclick = closeModal;
   document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value; const bags = Number(document.getElementById('g_bags').value);
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const party = document.getElementById('g_party').value || ''; const note = document.getElementById('g_note').value || '';
+    const mid = document.getElementById('g_mat').value;
+    const bags = Number(document.getElementById('g_bags').value);
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
+    const party = document.getElementById('g_party').value || '';
+    const note = document.getElementById('g_note').value || '';
     await addEntryBags(mid,'sale',bags,price,party,note); closeModal();
   };
 });
 
-document.getElementById('btnToday').addEventListener('click', ()=> openTodayModal());
-
-/* Expose for inline handlers */
+/* Expose functions used by inline handlers */
 window.openQuickPurchase = openQuickPurchase;
 window.openQuickSale = openQuickSale;
 window.openMaterialEditorDialog = openMaterialEditorDialog;
