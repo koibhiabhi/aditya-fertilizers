@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Fertilizers Supply Chain Management</title>
+  <title>Fertilizers Supply Chain Management — Admin</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,14 +13,14 @@
 
   <style>
     :root{
-      --bg:#f3f6f8; --card:#fff; --muted:#6b7280; --accent:#0f766e; --warn:#047857; --danger:#b91c1c; --sidebar-w:320px;
+      --bg:#f3f6f8; --card:#fff; --muted:#6b7280; --accent:#0f766e; --accent-2:#065f57; --warn:#047857; --danger:#b91c1c; --sidebar-w:320px;
       font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:#07223b;min-height:100vh;display:flex;flex-direction:column}
-    header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border-bottom:1px solid rgba(2,6,23,0.04);position:sticky;top:0;z-index:1000}
+    header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border-bottom:1px solid rgba(2,6,23,0.04);position:sticky;top:0;z-index:1000}
     .hamburger{width:42px;height:42px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(12,15,20,0.06)}
-    .title{font-weight:700;font-size:16px}
+    .title{font-weight:700;font-size:18px}
     .subtitle{font-size:12px;color:var(--muted)}
     main{display:flex;gap:18px;padding:18px;align-items:flex-start;flex:1}
     .drawer{width:var(--sidebar-w);min-width:var(--sidebar-w);max-height:calc(100vh - 88px);overflow:auto;padding:14px;border-radius:12px;background:var(--card);box-shadow:0 8px 28px rgba(12,15,20,0.06)}
@@ -40,18 +40,17 @@
     .small{font-size:13px;color:var(--muted)} .tiny{font-size:12px;color:var(--muted)}
     .chart-wrap{height:260px}
     .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.35);display:flex;align-items:center;justify-content:center;z-index:2500}
-    .modal{width:94%;max-width:960px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.18)}
+    .modal{width:94%;max-width:980px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.18)}
     footer{padding:12px 18px;background:transparent;text-align:center;font-size:13px;color:var(--muted)}
-    .report-panel{display:flex;flex-direction:column;gap:10px}
-    .report-card{padding:10px;border-radius:8px;border:1px solid #eef6f5;background:#fcfffe}
-    .date-header{font-weight:700;margin-top:16px;margin-bottom:6px}
-    .txn{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;border:1px solid #f3f4f6;margin-bottom:8px}
-    .txn .left{display:flex;gap:12px;align-items:center}
-    .txn .type{padding:6px 8px;border-radius:8px;font-weight:700}
-    .type.purchase{background:#e8f7f3;color:#046e5a}
-    .type.sale{background:#fff0f0;color:#b91c1c}
-    @media (max-width:1100px){ .dashboard-split{flex-direction:column} }
-    @media (max-width:900px){ main{flex-direction:column;padding:12px} .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:1500;transform:translateX(-120%);transition:transform .22s ease} .drawer.open{transform:translateX(0)} .drawer.hide{display:block} }
+    .report-tabs{display:flex;flex-direction:column;gap:8px}
+    .report-card{padding:10px;border-radius:8px;border:1px solid #eef6f4;background:linear-gradient(180deg,#ffffff,#fbfffe)}
+    .ledger-day{margin-bottom:12px}
+    .entry-card{padding:10px;border-radius:8px;border:1px solid #f2f6f6;background:#fff;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .entry-left{display:flex;gap:8px;align-items:center}
+    .badge-purchase{background:var(--accent);color:white;padding:6px 8px;border-radius:8px;font-weight:700}
+    .badge-sale{background:var(--danger);color:white;padding:6px 8px;border-radius:8px;font-weight:700}
+    .mini{font-size:12px;color:var(--muted)}
+    @media (max-width:1100px){ .chart-wrap{height:200px} .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:1500;transform:translateX(-120%);transition:transform .22s ease} .drawer.open{transform:translateX(0)} .drawer.hide{display:block} .report-tabs{flex-direction:row;flex-wrap:wrap} }
     /* Loader */
     #globalLoader{ position:fixed; inset:0; background:rgba(255,255,255,0.6); display:none; z-index:99999; align-items:center; justify-content:center; pointer-events:auto; }
     .loaderBox{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 18px 60px rgba(2,6,23,0.12);display:flex;gap:12px;align-items:center}
@@ -59,21 +58,26 @@
     @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
+
 <body>
   <header>
     <div id="hamb" class="hamburger" title="Menu">
-      <svg width="18" height="12" viewBox="0 0 20 14" fill="none"><rect y="0" width="20" height="2" rx="1" fill="#0f766e"/><rect y="6" width="20" height="2" rx="1" fill="#0f766e"/><rect y="12" width="20" height="2" rx="1" fill="#0f766e"/></svg>
+      <svg width="18" height="12" viewBox="0 0 20 14" fill="none">
+        <rect y="0" width="20" height="2" rx="1" fill="#0f766e"/><rect y="6" width="20" height="2" rx="1" fill="#0f766e"/><rect y="12" width="20" height="2" rx="1" fill="#0f766e"/>
+      </svg>
     </div>
     <div><div class="title">Fertilizers Supply Chain Management</div></div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <button id="btnToday" class="btn ghost">Today</button>
       <div class="tiny">Status: <span id="statusLabel">Initializing…</span></div>
-      <button id="btnToday" class="btn ghost" title="Today summary">Today</button>
     </div>
   </header>
 
   <main>
     <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><div style="font-weight:700">Admin Menu</div><div style="margin-left:auto" class="small muted">Single admin</div></div>
+
       <label>Company (select here)</label>
       <select id="companySelect"></select>
 
@@ -89,7 +93,7 @@
       <div class="small muted">Advanced</div>
       <div class="menu-item" id="menuExport"><div>Export data</div><div class="small">Download CSV (Excel)</div></div>
 
-      <div class="footer tiny muted" style="margin-top:12px">After testing, remove hardcoded credentials and restrict Firestore writes to admin UID in rules.</div>
+      <div class="footer tiny muted" style="margin-top:12px">After testing, please remove hardcoded credentials and restrict Firestore writes to admin UID in rules.</div>
     </aside>
 
     <section class="content">
@@ -98,22 +102,21 @@
           <div style="font-weight:700" id="mainCompanyName">Select a company</div>
           <div class="tiny muted">Company chosen in the menu</div>
         </div>
+
         <div style="flex:1">
           <label>Quick actions</label>
           <div class="controls">
             <button id="btnPurchase" class="btn">Add Purchase</button>
             <button id="btnSale" class="btn warn">Add Sale</button>
-            <button id="btnHistoryTop" class="btn ghost">History</button>
+            <button id="btnHistory" class="btn ghost">History</button>
             <button id="btnManage" class="btn ghost">Manage</button>
           </div>
         </div>
+
         <div style="min-width:180px;text-align:right"><div class="tiny">Last remote update</div><div id="lastUpdated" style="font-weight:700">—</div></div>
       </div>
 
-      <!-- Dashboard area -->
       <div id="dashboardArea"></div>
-
-      <!-- Modal root -->
       <div id="modalRoot"></div>
     </section>
   </main>
@@ -121,17 +124,20 @@
   <footer>© All rights reserved by zeroCaps — Made by Abhinav ❤️</footer>
 
   <input id="fileInput" type="file" accept=".json" style="display:none"/>
+
+  <!-- GLOBAL LOADER -->
   <div id="globalLoader"><div class="loaderBox"><div class="spinner" aria-hidden="true"></div><div><div style="font-weight:700" id="loaderTitle">Working…</div><div class="tiny muted" id="loaderText">Please wait</div></div></div></div>
 
 <script>
-/* Fertilizers Supply Chain Management — single file
-   - Bags-based tracking (stockBags)
-   - Non-destructive: legacy stockKg left untouched (read-only)
-   - Reports: today/daily/weekly/monthly/all
-   - Enhanced history (grouped ledger)
-*/
+/* =========================================================
+   Fertilizers Supply Chain Management (bags-first, drop-in)
+   - All new transactions use bags (bags, pricePerBag, totalValue, party)
+   - Legacy stockKg left untouched (read-only calculations only)
+   - Dashboard: chart + total inventory value + reports
+   - History: grouped ledger view with edit/delete
+   ========================================================= */
 
-/* ---------- CONFIG ---------- */
+/* FIREBASE CONFIG (your config) */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBEybu3XKeK3QOeRIMs-fK2dDwHtpCTqgQ",
   authDomain: "aditya-supply-chain-b5f61.firebaseapp.com",
@@ -141,65 +147,88 @@ const FIREBASE_CONFIG = {
   appId: "1:662836162599:web:2b49bde530e4b87924de02",
   measurementId: "G-DQH00BNH1L"
 };
+
+/* HARDCODED ADMIN CREDENTIALS (insecure if public) */
 const AUTO_SIGNIN = true;
 const ADMIN_EMAIL = 'adityajainaas@gmail.com';
 const ADMIN_PWD = 'Aditya@1609';
 
-/* ---------- INIT FIREBASE ---------- */
+/* Initialize Firebase */
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-/* ---------- APP STATE ---------- */
+/* App state */
 let currentCompanyId = null;
 let materialsUnsub = null;
 let entriesUnsub = null;
-let lastMaterials = []; // array of {id, ...data}
-let lastEntries = [];   // array of {id, ...data}
+let lastMaterials = []; // materials for current company
+let lastEntries = [];   // entries for current company (recent)
+/* pre-calc */
+let cachedTotalInventoryValue = 0;
 
-/* ---------- UTILITIES & LOADER ---------- */
+/* Loader */
 const loader = document.getElementById('globalLoader');
 const loaderTitle = document.getElementById('loaderTitle');
 const loaderText = document.getElementById('loaderText');
-function showLoader(title='Working…', text='Please wait'){ loaderTitle.textContent = title; loaderText.textContent = text; loader.style.display = 'flex'; loader.setAttribute('aria-hidden','false'); }
-function hideLoader(){ loader.style.display = 'none'; loader.setAttribute('aria-hidden','true'); }
+function showLoader(title='Working…', text='Please wait'){
+  loaderTitle.textContent = title; loaderText.textContent = text; loader.style.display = 'flex';
+  loader.setAttribute('aria-hidden', 'false');
+}
+function hideLoader(){ loader.style.display = 'none'; loader.setAttribute('aria-hidden', 'true'); }
 
-function fmtDate(ts){
-  if(!ts) return '-';
-  if(ts.toDate) return ts.toDate().toLocaleString('en-IN');
-  if(ts.seconds) return new Date(ts.seconds*1000).toLocaleString('en-IN');
-  return new Date(ts).toLocaleString('en-IN');
-}
-function fmtDateOnly(ts){
-  const d = (ts && ts.toDate) ? ts.toDate() : (ts && ts.seconds ? new Date(ts.seconds*1000) : new Date(ts));
-  return d.toISOString().slice(0,10);
-}
+/* Utilities */
+function fmtDate(ts){ if(!ts) return '-'; if(ts.toDate) return ts.toDate().toLocaleString('en-IN'); if(ts.seconds) return new Date(ts.seconds*1000).toLocaleString('en-IN'); return new Date(ts).toLocaleString('en-IN'); }
 function toINR(x){ if(x===undefined||x===null||x==='') return '-'; return '₹' + Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 function normalizeName(n){ return (n || '').trim().toLowerCase(); }
-function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dateOnly(d){ const t = new Date(d); t.setHours(0,0,0,0); return t; }
+function sameDay(a,b){ return dateOnly(a).getTime() === dateOnly(b).getTime(); }
 
-/* Safe parse timestamp -> Date */
-function createdAtToDate(e){
-  if(!e) return null;
-  const ts = e.createdAt;
-  if(!ts) return null;
-  if(ts.toDate) return ts.toDate();
-  if(ts.seconds) return new Date(ts.seconds*1000);
-  return new Date(ts);
+/* Modal helpers */
+function showModal(html){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML =
+    `<div class="modal-backdrop" id="modalBackdrop">
+       <div class="modal">${html}</div>
+     </div>`;
+  document.getElementById('modalBackdrop').addEventListener('click',(e)=>{ if(e.target.id === 'modalBackdrop') closeModal(); });
 }
+function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
 
-/* ---------- AUTH ---------- */
+/* ---------- Auth ---------- */
 auth.onAuthStateChanged(user=>{
   if(user){ document.getElementById('adminEmail').textContent = user.email || user.uid; document.getElementById('statusLabel').textContent = 'Signed in'; }
   else { document.getElementById('adminEmail').textContent = 'Not signed'; document.getElementById('statusLabel').textContent = 'Signed out'; }
 });
-async function autoSignIn(){
-  if(!AUTO_SIGNIN) return;
-  try{ showLoader('Signing in…','Signing in admin account'); await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PWD); } catch(err){ alert('Auto sign-in failed: ' + err.message); } finally{ hideLoader(); }
+async function autoSignIn(){ if(!AUTO_SIGNIN) return; try{ showLoader('Signing in…','Signing in admin account'); await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PWD); }catch(err){ alert('Auto sign-in failed: ' + err.message);} finally{ hideLoader(); } }
+
+/* ---------- Backwards-compat read helpers ----------
+   - authoritative: stockBags (number)
+   - fallback/display-only: infer bags from stockKg and kgPerBag (DO NOT overwrite)
+--------------------------------------------------------------------------*/
+function readMaterialStockBags(mat){
+  if(mat.stockBags !== undefined && mat.stockBags !== null) return Number(mat.stockBags) || 0;
+  if(mat.stockKg !== undefined && mat.kgPerBag) {
+    const bags = Number(mat.stockKg) / Number(mat.kgPerBag || 1);
+    return Math.round(bags * 100) / 100;
+  }
+  return 0;
+}
+function getMaterialPricePerBag(mat){
+  if(mat.pricePerBag !== undefined && mat.pricePerBag !== null) return Number(mat.pricePerBag) || null;
+  const hist = lastEntries
+    .filter(e => e.materialId === mat.id && e.pricePerBag)
+    .sort((a,b)=> {
+      const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : (new Date(a.createdAt)).getTime();
+      const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : (new Date(b.createdAt)).getTime();
+      return bT - aT;
+    });
+  if(hist.length) return Number(hist[0].pricePerBag) || null;
+  return null;
 }
 
-/* ---------- DEDUPE (kept for safety) ---------- */
-async function dedupeCompanies(){ /* ... exact same dedupe logic omitted for brevity in comments ... */
+/* ---------- Dedupe (kept) ---------- */
+async function dedupeCompanies(){
   try{
     const snap = await db.collection('companies').get();
     const groups = {};
@@ -273,7 +302,7 @@ async function dedupeMaterialsForCompany(companyId){
   }catch(err){ console.error('dedupeMaterialsForCompany failed', err); } finally { hideLoader(); }
 }
 
-/* ---------- COMPANY MENU ---------- */
+/* ---------- Load companies / switch ---------- */
 async function loadCompaniesToMenu(){
   const sel = document.getElementById('companySelect');
   sel.innerHTML = '';
@@ -292,9 +321,7 @@ async function loadCompaniesToMenu(){
       renderEmptyDashboard();
       return;
     }
-    if(!currentCompanyId || !Array.from(sel.options).some(o => o.value === currentCompanyId)){
-      currentCompanyId = sel.options[0].value;
-    }
+    if(!currentCompanyId || !Array.from(sel.options).some(o => o.value === currentCompanyId)) currentCompanyId = sel.options[0].value;
     sel.value = currentCompanyId;
     document.getElementById('mainCompanyName').textContent = sel.options[sel.selectedIndex].textContent;
     startCompanyListeners(currentCompanyId);
@@ -308,12 +335,11 @@ document.getElementById('companySelect').addEventListener('change', ()=>{
   startCompanyListeners(currentCompanyId);
 });
 
-/* ---------- LISTENERS ---------- */
+/* ---------- Listeners ---------- */
 function clearListeners(){
   try{ if(typeof materialsUnsub === 'function') materialsUnsub(); }catch(e){console.warn(e);}
   try{ if(typeof entriesUnsub === 'function') entriesUnsub(); }catch(e){console.warn(e);}
-  materialsUnsub = null; entriesUnsub = null;
-  lastMaterials = []; lastEntries = [];
+  materialsUnsub = null; entriesUnsub = null; lastMaterials = []; lastEntries = [];
 }
 function startCompanyListeners(companyId){
   if(!companyId) return;
@@ -331,7 +357,7 @@ function startCompanyListeners(companyId){
     // refresh history if open
     const modalRoot = document.getElementById('modalRoot');
     if(modalRoot.innerHTML && modalRoot.innerHTML.includes('History —')) renderHistory();
-    // update dashboard (price per bag fallback uses lastEntries)
+    // whenever entries change, update dashboard (price derivation)
     renderMaterials(lastMaterials);
   }, err => { console.error('entries onSnapshot', err); alert('Listener error (entries): ' + err.message); });
 
@@ -341,95 +367,64 @@ function startCompanyListeners(companyId){
   });
 }
 
-/* ---------- MATERIAL STOCK HELPERS (bags-focused) ---------- */
-/*
- - stockBags is authoritative for the new app.
- - If stockBags is missing but legacy stockKg+kgPerBag exists, an inferred value can be shown (not written back).
- - getMaterialPricePerBag: prefer material.pricePerBag, else fallback to most recent entry price for that material (from lastEntries).
-*/
-function readMaterialStockBags(mat){
-  if(mat.stockBags !== undefined && mat.stockBags !== null) return Number(mat.stockBags) || 0;
-  if(mat.stockKg !== undefined && mat.kgPerBag) {
-    const bags = Number(mat.stockKg) / Number(mat.kgPerBag || 1);
-    return Math.round(bags * 100) / 100;
-  }
-  return 0;
-}
-function getMaterialPricePerBag(mat){
-  if(mat.pricePerBag !== undefined && mat.pricePerBag !== null) return Number(mat.pricePerBag) || null;
-  const hist = lastEntries
-    .filter(e => e.materialId === mat.id && e.pricePerBag)
-    .sort((a,b)=>{
-      const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : (new Date(a.createdAt)).getTime();
-      const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : (new Date(b.createdAt)).getTime();
-      return bT - aT;
-    });
-  if(hist.length) return Number(hist[0].pricePerBag) || null;
-  return null;
-}
+/* ---------- Dashboard rendering (chart + reports + total) ---------- */
+function renderEmptyDashboard(){ document.getElementById('dashboardArea').innerHTML = '<div class="card tiny muted">No company selected / no data.</div>'; }
 
-/* compute derived values for UI */
 function computeMaterialDerived(mat){
   const bags = readMaterialStockBags(mat);
   const pricePerBag = getMaterialPricePerBag(mat);
-  const stockValue = (pricePerBag ? (bags * Number(pricePerBag)) : null);
+  const stockValue = (pricePerBag ? (bags * Number(pricePerBag)) : 0);
   const sales = lastEntries.filter(e => e.materialId === mat.id && e.type === 'sale').reduce((acc, e) => acc + (Number(e.totalValue || 0)), 0);
   return { bags, pricePerBag, stockValue, sales };
 }
 
-/* ---------- DASHBOARD RENDERING ---------- */
-function renderEmptyDashboard(){
-  document.getElementById('dashboardArea').innerHTML = '<div class="card tiny muted">No company selected / no data.</div>';
-}
-
-/* Main render: shows materials grid and chart + reports panel */
 function renderMaterials(materials){
   const area = document.getElementById('dashboardArea'); area.innerHTML = '';
 
-  // top header card
+  // Header card
   const header = document.createElement('div'); header.className = 'card';
-  header.innerHTML =
-    `<div style="display:flex;justify-content:space-between;align-items:center">
+  header.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-weight:700">${document.getElementById('mainCompanyName').textContent}</div><div class="tiny muted">Stock overview (bags)</div></div>
       <div class="tiny muted">Materials: ${materials.length}</div>
     </div>`;
   area.appendChild(header);
 
-  // materials grid
+  // Materials grid
   const gridWrap = document.createElement('div'); gridWrap.className='card';
   const grid = document.createElement('div'); grid.className='materials';
   for(const m of materials){
-    const derived = computeMaterialDerived(m);
-    const bags = derived.bags;
-    const price = derived.pricePerBag;
-    const stockValue = derived.stockValue;
-    const sales = derived.sales;
+    const d = computeMaterialDerived(m);
+    const bags = d.bags;
+    const price = d.pricePerBag;
+    const stockValue = d.stockValue;
+    const sales = d.sales;
     const div = document.createElement('div'); div.className='mat-card';
-    div.innerHTML =
-      `<div class="mat-name">${escapeHtml(m.name)}</div>
-       <div class="mat-qty ${bags <= (m.lowStockBags||0) ? 'low' : ''}">${bags} bags</div>
-       <div class="tiny muted" style="margin-top:6px">Low threshold: ${(m.lowStockBags||0)} bags</div>
-       <div style="margin-top:8px" class="tiny muted">Kg per bag: ${m.kgPerBag || '—'}</div>
-       <div style="margin-top:10px;display:flex;gap:8px;flex-direction:column">
-         <div style="display:flex;gap:8px">
-           <button class="btn" onclick="openQuickPurchase('${m.id}','${escapeHtml(m.name)}')">Add Purchase</button>
-           <button class="btn warn" onclick="openQuickSale('${m.id}','${escapeHtml(m.name)}')">Add Sale</button>
-           <button class="btn ghost" onclick="openMaterialEditorDialog('${m.id}')">Edit</button>
-         </div>
-         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-           <div class="tiny muted">Price/bag: ${price ? toINR(price) : '-'}</div>
-           <div class="tiny muted">Stock value: ${stockValue ? toINR(stockValue) : '-'}</div>
-         </div>
-         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-           <div class="tiny muted">Total sales: ${toINR(sales)}</div>
-         </div>
-       </div>`;
+    div.innerHTML = `
+      <div class="mat-name">${escapeHtml(m.name)}</div>
+      <div class="mat-qty ${bags <= (m.lowStockBags||0) ? 'low' : ''}">${bags} bags</div>
+      <div class="tiny muted" style="margin-top:6px">Low threshold: ${(m.lowStockBags||0)} bags</div>
+      <div style="margin-top:8px" class="tiny muted">Kg per bag: ${m.kgPerBag || '—'}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-direction:column">
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="openQuickPurchase('${m.id}','${escapeHtml(m.name)}')">Add Purchase</button>
+          <button class="btn warn" onclick="openQuickSale('${m.id}','${escapeHtml(m.name)}')">Add Sale</button>
+          <button class="btn ghost" onclick="openMaterialEditorDialog('${m.id}')">Edit</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div class="tiny muted">Price/bag: ${price ? toINR(price) : '-'}</div>
+          <div class="tiny muted">Stock value: ${stockValue ? toINR(stockValue) : '-'}</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <div class="tiny muted">Total sales: ${toINR(sales)}</div>
+        </div>
+      </div>`;
     grid.appendChild(div);
   }
   gridWrap.appendChild(grid);
   area.appendChild(gridWrap);
 
-  // low stock card
+  // Low stock card
   const lows = materials.filter(m => (computeMaterialDerived(m).bags || 0) <= (m.lowStockBags || 0));
   if(lows.length){
     const lowCard = document.createElement('div'); lowCard.className = 'card';
@@ -437,8 +432,8 @@ function renderMaterials(materials){
     for(const m of lows){
       const s = computeMaterialDerived(m).bags;
       const row = document.createElement('div'); row.style.marginTop='8px';
-      row.innerHTML =
-        `<div style="display:flex;justify-content:space-between;align-items:center">
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <div><strong>${escapeHtml(m.name)}</strong><div class="tiny muted">${s} bags left (threshold ${m.lowStockBags||0} bags)</div></div>
           <div><button class="btn" onclick="openQuickPurchase('${m.id}','${escapeHtml(m.name)}')">Restock</button></div>
         </div>`;
@@ -447,36 +442,30 @@ function renderMaterials(materials){
     area.appendChild(lowCard);
   }
 
-  // chart + reports split
+  // Chart + Reports layout
   const splitCard = document.createElement('div'); splitCard.className = 'card';
-  splitCard.style.display = 'flex'; splitCard.style.gap = '16px'; splitCard.style.alignItems = 'flex-start'; splitCard.classList.add('dashboard-split');
+  splitCard.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:320px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Stock value</div>
+          <div class="tiny muted">₹ per material (current)</div>
+        </div>
+        <div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>
+        <div style="margin-top:12px;font-weight:700">Total inventory value: <span id="totalInventoryValue">—</span></div>
+      </div>
 
-  // left: chart
-  const left = document.createElement('div'); left.style.flex='1';
-  left.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:700">Stock value</div>
-      <div class="tiny muted">₹ per material (current)</div>
-    </div>
-    <div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>
-    <div id="totalInventoryValue" style="margin-top:12px;font-weight:700">Total inventory value: -</div>
-  `;
-  splitCard.appendChild(left);
-
-  // right: reports
-  const right = document.createElement('div'); right.style.width = '320px';
-  right.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:700">Reports</div>
-      <div class="tiny muted">Quick views</div>
-    </div>
-    <div style="margin-top:10px" id="reportsArea"></div>
-  `;
-  splitCard.appendChild(right);
-
+      <div style="width:320px;min-width:260px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:700">Reports</div>
+          <div class="tiny muted">Select period</div>
+        </div>
+        <div style="margin-top:10px" id="reportsContainer"></div>
+      </div>
+    </div>`;
   area.appendChild(splitCard);
 
-  // build chart data
+  // Chart data
   const labels = materials.map(m => m.name);
   const data = materials.map(m => {
     const d = computeMaterialDerived(m);
@@ -491,150 +480,105 @@ function renderMaterials(materials){
       data:{ labels, datasets:[{ label:'₹', data }] },
       options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true } } }
     });
-
-    // total inventory
-    const totalInv = data.reduce((a,b)=>a + Number(b || 0), 0);
-    document.getElementById('totalInventoryValue').textContent = `Total inventory value: ${toINR(totalInv)}`;
-
-    // populate reports area
-    renderReportsPanel();
   }, 20);
+
+  // total inventory value
+  const total = data.reduce((a,b)=>a+Number(b||0),0);
+  cachedTotalInventoryValue = Math.round(total*100)/100;
+  document.getElementById('totalInventoryValue').textContent = toINR(cachedTotalInventoryValue);
+
+  // reports
+  renderReports();
 }
 
-/* ---------- REPORTS (Today, Daily, Weekly, Monthly, All) ---------- */
-/* compute report for given time window (fromDate exclusive) */
-function computeReportSince(fromDate){
-  const purchases = { bags:0, value:0 };
-  const sales = { bags:0, value:0 };
-  for(const e of lastEntries){
-    const d = createdAtToDate(e);
-    if(!d) continue;
-    if(d < fromDate) continue;
-    if(e.type === 'purchase'){
-      purchases.bags += Number(e.bags || 0);
-      purchases.value += Number(e.totalValue || 0);
-    } else if(e.type === 'sale'){
-      sales.bags += Number(e.bags || 0);
-      sales.value += Number(e.totalValue || 0);
-    }
-  }
-  return { purchases, sales, netBags: purchases.bags - sales.bags, netValue: purchases.value - sales.value };
-}
-
-function computeReportAll(){
-  const purchases = { bags:0, value:0 };
-  const sales = { bags:0, value:0 };
-  for(const e of lastEntries){
-    if(e.type === 'purchase'){ purchases.bags += Number(e.bags || 0); purchases.value += Number(e.totalValue || 0); }
-    else if(e.type === 'sale'){ sales.bags += Number(e.bags || 0); sales.value += Number(e.totalValue || 0); }
-  }
-  return { purchases, sales, netBags: purchases.bags - sales.bags, netValue: purchases.value - sales.value };
-}
-
-/* Render the small reports panel with selectable views */
-function renderReportsPanel(){
-  const area = document.getElementById('reportsArea'); area.innerHTML = '';
-  const ctrl = document.createElement('div'); ctrl.style.display='flex'; ctrl.style.gap='6px';
-  const periods = ['Today','Daily','Weekly','Monthly','All'];
-  periods.forEach(p => {
-    const b = document.createElement('button'); b.className = 'btn ghost'; b.textContent = p;
-    b.onclick = ()=>{ renderReportDetail(p.toLowerCase()); };
-    ctrl.appendChild(b);
-  });
-  area.appendChild(ctrl);
-
-  // default to Weekly
-  renderReportDetail('weekly');
-}
-
-function renderReportDetail(period){
-  const area = document.getElementById('reportsArea');
-  // compute period window
+/* ---------- Reports: Daily / Weekly / Monthly / All ---------- */
+function periodBounds(period){
   const now = new Date();
-  let from;
-  if(period === 'today'){
-    from = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // start of today
-  } else if(period === 'daily'){
-    from = new Date(now.getTime() - (24 * 3600 * 1000));
-  } else if(period === 'weekly'){
-    from = new Date(now.getTime() - (7 * 24 * 3600 * 1000));
-  } else if(period === 'monthly'){
-    from = new Date(now.getTime() - (30 * 24 * 3600 * 1000));
-  } else {
-    from = new Date(0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1); // exclusive end at next day 00:00
+  let start;
+  if(period === 'today'){ start = dateOnly(now); }
+  else if(period === 'week'){ // last 7 days inclusive
+    const d = new Date(now); d.setDate(d.getDate() - 6); start = dateOnly(d);
+  } else if(period === 'month'){
+    const d = new Date(now); d.setDate(d.getDate() - 29); start = dateOnly(d);
+  } else { // all
+    start = new Date(0);
   }
-
-  let report;
-  if(period === 'all'){
-    report = computeReportAll();
-  } else {
-    report = computeReportSince(from);
-  }
-
-  const html = `
-    <div style="margin-top:8px" class="report-card">
-      <div style="font-weight:700">${capitalize(period)} report</div>
-      <div class="tiny muted" style="margin-top:6px">Period since: ${from.toLocaleString()}</div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <div style="flex:1;padding:8px;border-radius:8px;border:1px solid #eef6f5">
-          <div class="tiny muted">Purchases</div>
-          <div style="font-weight:700">${report.purchases.bags} bags</div>
-          <div class="tiny muted">${toINR(report.purchases.value)}</div>
-        </div>
-        <div style="flex:1;padding:8px;border-radius:8px;border:1px solid #fff0f0">
-          <div class="tiny muted">Sales</div>
-          <div style="font-weight:700">${report.sales.bags} bags</div>
-          <div class="tiny muted">${toINR(report.sales.value)}</div>
-        </div>
-      </div>
-      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
-        <div class="tiny muted">Net (purchases - sales)</div>
-        <div style="font-weight:700">${report.netBags} bags • ${toINR(report.netValue)}</div>
-      </div>
-    </div>
-  `;
-  // replace existing detail area (append below buttons)
-  const existingButtons = area.querySelector('div');
-  area.innerHTML = ''; area.appendChild(existingButtons);
-  const detail = document.createElement('div'); detail.innerHTML = html;
-  area.appendChild(detail);
+  return { start, end };
+}
+function filterEntriesByPeriod(period){
+  const { start, end } = periodBounds(period);
+  return lastEntries.filter(e => {
+    if(!e.createdAt) return false;
+    const t = e.createdAt.toDate ? e.createdAt.toDate() : new Date(e.createdAt);
+    return t >= start && t < end;
+  });
+}
+function aggregateForPeriod(period){
+  const entries = filterEntriesByPeriod(period);
+  const purchases = entries.filter(e => e.type === 'purchase');
+  const sales = entries.filter(e => e.type === 'sale');
+  const sumBagsPurchased = purchases.reduce((s,e)=>s + Number(e.bags||0), 0);
+  const sumBagsSold = sales.reduce((s,e)=>s + Number(e.bags||0), 0);
+  const sumValuePurchased = purchases.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  const sumValueSold = sales.reduce((s,e)=>s + Number(e.totalValue||0), 0);
+  const netBagsChange = sumBagsPurchased - sumBagsSold;
+  const netValueChange = sumValuePurchased - sumValueSold;
+  return {
+    sumBagsPurchased, sumBagsSold, sumValuePurchased, sumValueSold, netBagsChange, netValueChange
+  };
+}
+function renderReports(){
+  const container = document.getElementById('reportsContainer');
+  container.innerHTML = '';
+  const periods = ['today','week','month','all'];
+  periods.forEach(p=>{
+    const title = (p==='today') ? 'Daily' : (p==='week' ? 'Weekly' : (p==='month' ? 'Monthly' : 'All'));
+    const ag = aggregateForPeriod(p);
+    const card = document.createElement('div'); card.className = 'report-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">${title}</div><div class="mini">period: ${p}</div></div>
+      <div style="margin-top:8px" class="mini">Purchases: ${ag.sumBagsPurchased} bags • ${toINR(ag.sumValuePurchased)}</div>
+      <div style="margin-top:6px" class="mini">Sales: ${ag.sumBagsSold} bags • ${toINR(ag.sumValueSold)}</div>
+      <div style="margin-top:6px;font-weight:700">Net: ${ag.netBagsChange} bags • ${toINR(ag.netValueChange)}</div>
+    `;
+    container.appendChild(card);
+  });
 }
 
-function capitalize(s){ if(!s) return ''; return s[0].toUpperCase() + s.slice(1); }
-
-/* ---------- TODAY BUTTON ---------- */
-document.getElementById('btnToday').addEventListener('click', async ()=>{
+/* ---------- Today quick modal ---------- */
+function openTodayModal(){
   if(!currentCompanyId) return alert('Select a company first');
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const rep = computeReportSince(start);
-  // compute today's stock snapshot: show all materials with current bags & stock value
-  const matSummaries = lastMaterials.map(m => {
+  // today's entries & stock snapshot
+  const todayEntries = filterEntriesByPeriod('today');
+  const purchases = todayEntries.filter(e=>e.type==='purchase').reduce((s,e)=>({ bags: s.bags+Number(e.bags||0), value: s.value+Number(e.totalValue||0)}), {bags:0,value:0});
+  const sales = todayEntries.filter(e=>e.type==='sale').reduce((s,e)=>({ bags: s.bags+Number(e.bags||0), value: s.value+Number(e.totalValue||0)}), {bags:0,value:0});
+  // current stock snapshot (from lastMaterials)
+  const stocks = lastMaterials.map(m => {
     const d = computeMaterialDerived(m);
-    return { name: m.name, bags: d.bags, pricePerBag: d.pricePerBag, stockValue: d.stockValue };
+    return { name: m.name, bags: d.bags, stockValue: d.stockValue, pricePerBag: d.pricePerBag };
   });
-  // build modal
-  const rows = matSummaries.map(ms => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #f3f4f6"><div>${escapeHtml(ms.name)}</div><div>${ms.bags} bags • ${ms.pricePerBag ? toINR(ms.pricePerBag) : '-'} • ${ms.stockValue ? toINR(ms.stockValue) : '-'}</div></div>`).join('');
+  const topStocks = stocks.slice(0,10).map(s=>`<div style="display:flex;justify-content:space-between"><div>${escapeHtml(s.name)} • ${s.bags} bags</div><div>${toINR(s.stockValue)}</div></div>`).join('');
   showModal(`
-    <div style="font-weight:700">Today — Status & activity</div><hr>
-    <div style="display:flex;gap:12px">
-      <div style="flex:1">
-        <div style="font-weight:700">Today's activity</div>
-        <div class="tiny muted" style="margin-top:6px">Purchases: ${rep.purchases.bags} bags • ${toINR(rep.purchases.value)}</div>
-        <div class="tiny muted" style="margin-top:4px">Sales: ${rep.sales.bags} bags • ${toINR(rep.sales.value)}</div>
-        <div style="margin-top:8px;font-weight:700">Net: ${rep.netBags} bags • ${toINR(rep.netValue)}</div>
+    <div style="font-weight:700">Today — ${document.getElementById('mainCompanyName').textContent}</div><hr>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700">Today's summary</div>
+        <div class="mini" style="margin-top:8px">Purchases: ${purchases.bags} bags • ${toINR(purchases.value)}</div>
+        <div class="mini" style="margin-top:6px">Sales: ${sales.bags} bags • ${toINR(sales.value)}</div>
+        <div class="mini" style="margin-top:6px">Net change: ${purchases.bags - sales.bags} bags • ${toINR(purchases.value - sales.value)}</div>
       </div>
-      <div style="flex:1">
-        <div style="font-weight:700">Stock snapshot</div>
-        <div style="max-height:240px;overflow:auto;margin-top:6px">${rows || '<div class="tiny muted">No materials</div>'}</div>
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700">Top stock items</div>
+        <div class="mini" style="margin-top:8px">${topStocks || '<div class="tiny muted">No stock</div>'}</div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="today_close">Close</button></div>
   `);
   document.getElementById('today_close').onclick = closeModal;
-});
+}
 
-/* ---------- ENTRY CREATION (bags-based) ---------- */
+/* ---------- Add entry (bags) ---------- */
 async function addEntryBags(materialId, type, bagsCount, pricePerBag, party, note){
   if(!currentCompanyId) return alert('Select a company first');
   if(!materialId || bagsCount <= 0) return alert('Invalid input');
@@ -647,27 +591,22 @@ async function addEntryBags(materialId, type, bagsCount, pricePerBag, party, not
       const matSnap = await tx.get(materialRef);
       if(!matSnap.exists) throw new Error('Material missing');
       const mat = matSnap.data();
-
       const currentStockBags = (mat.stockBags !== undefined && mat.stockBags !== null) ? Number(mat.stockBags || 0) : (mat.stockKg && mat.kgPerBag ? (Number(mat.stockKg) / Number(mat.kgPerBag || 1)) : 0);
-
       const newStock = (type === 'purchase') ? (currentStockBags + bagsCount) : (currentStockBags - bagsCount);
       if(newStock < -0.0001) throw new Error('Not enough stock for this sale');
-
       const totalValue = Number(bagsCount) * (pricePerBag ? Number(pricePerBag) : 0);
-
       const entryRef = entriesCol.doc();
       tx.set(entryRef, {
         type, materialId, bags: bagsCount, unit: 'bags', pricePerBag: pricePerBag || null, totalValue: totalValue || 0,
         party: party || '', note: note || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: (auth.currentUser && auth.currentUser.uid) || null
       });
-
       tx.update(materialRef, { stockBags: newStock, pricePerBag: pricePerBag || mat.pricePerBag || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       tx.update(companyRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
-  }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
+  }catch(err){ alert('Save failed: ' + err.message); console.error(err); }finally{ hideLoader(); }
 }
 
-/* ---------- QUICK MODALS (Purchase & Sale) ---------- */
+/* Quick Purchase / Sale modals */
 function openQuickPurchase(materialId, materialName){
   showModal(`
     <div style="font-weight:700">Add Purchase — ${escapeHtml(materialName)}</div><hr>
@@ -690,7 +629,6 @@ function openQuickPurchase(materialId, materialName){
     closeModal();
   };
 }
-
 function openQuickSale(materialId, materialName){
   showModal(`
     <div style="font-weight:700">Add Sale — ${escapeHtml(materialName)}</div><hr>
@@ -714,7 +652,7 @@ function openQuickSale(materialId, materialName){
   };
 }
 
-/* ---------- MANAGE COMPANIES & MATERIALS ---------- */
+/* ---------- Manage companies & materials (Select button) ---------- */
 function openManageModal(){
   showModal(`
     <div style="font-weight:700">Manage Companies & Materials</div><hr>
@@ -744,17 +682,14 @@ async function renderManageCompanies(){
     snap.forEach(doc=>{
       const d = doc.data();
       const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.justifyContent='space-between'; wrap.style.padding='8px'; wrap.style.border='1px solid #f1f5f7'; wrap.style.marginBottom='6px'; wrap.style.borderRadius='8px';
-      wrap.innerHTML = `<div><strong>${escapeHtml(d.name)}</strong><div class="tiny muted">${d.createdAt ? fmtDate(d.createdAt) : ''}</div></div>`;
+      wrap.innerHTML = `<div><strong>${d.name}</strong><div class="tiny muted">${d.createdAt ? fmtDate(d.createdAt) : ''}</div></div>`;
       const r = document.createElement('div');
       const selectBtn = document.createElement('button'); selectBtn.className='btn ghost'; selectBtn.textContent='Select';
       selectBtn.onclick = async ()=>{
         currentCompanyId = doc.id;
         const sel = document.getElementById('companySelect');
-        if(!Array.from(sel.options).some(o=>o.value===currentCompanyId)) {
-          await loadCompaniesToMenu();
-        } else {
-          sel.value = currentCompanyId;
-          document.getElementById('mainCompanyName').textContent = sel.options[sel.selectedIndex].textContent;
+        if(!Array.from(sel.options).some(o=>o.value===currentCompanyId)) { await loadCompaniesToMenu(); } else {
+          sel.value = currentCompanyId; document.getElementById('mainCompanyName').textContent = sel.options[sel.selectedIndex].textContent;
         }
         await renderManageMaterials();
       };
@@ -770,9 +705,7 @@ async function renderManageCompanies(){
           entSnap.forEach(e => batch.delete(e.ref));
           batch.delete(db.collection('companies').doc(doc.id));
           await batch.commit();
-          await loadCompaniesToMenu();
-          renderManageCompanies();
-          renderManageMaterials();
+          await loadCompaniesToMenu(); renderManageCompanies(); renderManageMaterials();
         }catch(err){ alert('Delete failed: ' + err.message); } finally { hideLoader(); }
       };
       r.appendChild(selectBtn); r.appendChild(del); wrap.appendChild(r); el.appendChild(wrap);
@@ -781,19 +714,17 @@ async function renderManageCompanies(){
 }
 
 async function addCompanyFromModal(){
-  const name = document.getElementById('mg_newCompany').value.trim();
-  if(!name) return alert('Enter name');
+  const name = document.getElementById('mg_newCompany').value.trim(); if(!name) return alert('Enter name');
   const nameNorm = normalizeName(name);
   showLoader('Checking…','Verifying duplicates');
   try{
     const existing = await db.collection('companies').where('name_lower','==',nameNorm).get();
-    if(!existing.empty){ hideLoader(); return alert('A company with the same name already exists. Duplicate creation prevented.'); }
+    if(!existing.empty){ hideLoader(); return alert('A company with the same name already exists.'); }
     showLoader('Creating company…','Writing to remote DB');
     const docRef = db.collection('companies').doc();
     await docRef.set({ name, name_lower: nameNorm, stockCurrency: 'INR', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     document.getElementById('mg_newCompany').value = '';
-    await loadCompaniesToMenu();
-    await renderManageCompanies();
+    await loadCompaniesToMenu(); await renderManageCompanies();
   }catch(err){ alert('Create failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
@@ -808,7 +739,7 @@ async function renderManageMaterials(){
       const wrap = document.createElement('div'); wrap.style.padding='8px'; wrap.style.border='1px solid #f1f5f7'; wrap.style.marginBottom='6px'; wrap.style.borderRadius='8px';
       wrap.innerHTML =
         `<div style="display:flex;justify-content:space-between;align-items:center">
-           <div><strong>${escapeHtml(d.name)}</strong><div class="tiny muted">Stock: ${readMaterialStockBags(d)} bags • Low: ${d.lowStockBags||0} bags</div></div>
+           <div><strong>${d.name}</strong><div class="tiny muted">Stock: ${readMaterialStockBags(d)} bags • Low: ${d.lowStockBags||0} bags</div></div>
            <div style="display:flex;gap:6px"><button class="btn ghost" onclick='openMaterialEditorDialog("${doc.id}")'>Edit</button><button class="btn danger" onclick='deleteMaterial("${doc.id}")'>Delete</button></div>
          </div>`;
       el.appendChild(wrap);
@@ -824,7 +755,7 @@ async function addMaterialFromModal(){
   try{
     const matsRef = db.collection('companies').doc(currentCompanyId).collection('materials');
     const existing = await matsRef.where('name_lower','==',nameNorm).get();
-    if(!existing.empty){ hideLoader(); return alert('A material with the same name already exists for this company. Duplicate prevented.'); }
+    if(!existing.empty){ hideLoader(); return alert('A material with the same name already exists for this company.'); }
     showLoader('Creating material…','Writing to remote DB');
     const matRef = matsRef.doc();
     await matRef.set({
@@ -832,8 +763,7 @@ async function addMaterialFromModal(){
       createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     document.getElementById('mg_newMaterial').value = '';
-    await renderManageMaterials();
-    await loadCompaniesToMenu();
+    await renderManageMaterials(); await loadCompaniesToMenu();
   }catch(err){ alert('Create material failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
@@ -847,12 +777,11 @@ async function deleteMaterial(materialId){
     entriesSnap.forEach(e => batch.delete(e.ref));
     batch.delete(matRef);
     await batch.commit();
-    await renderManageMaterials();
-    await loadCompaniesToMenu();
+    await renderManageMaterials(); await loadCompaniesToMenu();
   }catch(err){ alert('Delete failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
-/* ---------- MATERIAL EDITOR ---------- */
+/* ---------- Material editor ---------- */
 async function openMaterialEditorDialog(materialId){
   try{
     const matDoc = await db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId).get();
@@ -880,25 +809,23 @@ async function openMaterialEditorDialog(materialId){
         const dupSnap = await matsRef.where('name_lower','==',nameNorm).get();
         let conflict = false;
         dupSnap.forEach(d=>{ if(d.id !== materialId) conflict = true; });
-        if(conflict){ hideLoader(); return alert('Another material with the same name exists. Rename prevented.'); }
+        if(conflict){ hideLoader(); return alert('Another material with the same name exists.'); }
         await matsRef.doc(materialId).update({
           name: newName, name_lower: nameNorm, lowStockBags: low, kgPerBag: kgPerBag, pricePerBag: price || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        closeModal();
-        await renderManageMaterials();
-        await loadCompaniesToMenu();
+        closeModal(); await renderManageMaterials(); await loadCompaniesToMenu();
       }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
     };
   }catch(err){ alert('Open edit failed: ' + err.message); console.error(err); }
 }
 
-/* ---------- HISTORY (grouped ledger) ---------- */
+/* ---------- History ledger (grouped by date, readable) ---------- */
 function openHistoryModal(){
   if(!currentCompanyId) return alert('Select a company first in the admin menu');
   showModal(`
     <div style="font-weight:700">History — ${document.getElementById('mainCompanyName').textContent}</div>
     <hr>
-    <div id="historyContainer" style="max-height:60vh;overflow:auto"></div>
+    <div id="historyContainer" style="max-height:70vh;overflow:auto"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="h_close">Close</button></div>
   `);
   document.getElementById('h_close').onclick = closeModal;
@@ -908,59 +835,60 @@ function openHistoryModal(){
 function renderHistory(){
   const container = document.getElementById('historyContainer');
   if(!container) return;
-  if(!lastEntries || lastEntries.length === 0){ container.innerHTML = '<div class="tiny muted">No entries yet</div>'; return; }
-
-  // group entries by ISO date (yyyy-mm-dd)
-  const groups = {};
-  for(const e of lastEntries){
-    const d = createdAtToDate(e) || new Date();
-    const key = d.toISOString().slice(0,10);
-    if(!groups[key]) groups[key] = [];
-    groups[key].push({ id:e.id, ...e });
-  }
-
-  // sort dates descending
-  const dates = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
-
+  // Group entries by date (descending)
+  const grouped = {};
+  lastEntries.forEach(e=>{
+    const d = e.createdAt ? (e.createdAt.toDate ? e.createdAt.toDate() : new Date(e.createdAt)) : new Date();
+    const key = dateOnly(d).toISOString();
+    if(!grouped[key]) grouped[key] = [];
+    grouped[key].push(e);
+  });
+  const sortedDates = Object.keys(grouped).sort((a,b)=> new Date(b) - new Date(a));
   let html = '';
-  for(const date of dates){
-    const arr = groups[date];
-    html += `<div class="date-header">${date} — ${arr.length} transaction(s)</div>`;
-    for(const e of arr){
-      const m = lastMaterials.find(mm => mm.id === e.materialId);
-      const matName = m ? m.name : e.materialId;
-      const created = createdAtToDate(e) ? createdAtToDate(e).toLocaleTimeString() : '';
-      const typeClass = e.type === 'purchase' ? 'purchase' : 'sale';
-      const totalValue = toINR(e.totalValue || 0);
-      html += `
-        <div class="txn">
-          <div class="left">
-            <div class="type ${typeClass}">${e.type === 'purchase' ? 'Purchase' : 'Sale'}</div>
-            <div>
-              <div style="font-weight:700">${escapeHtml(matName)} <span style="font-weight:400;color:var(--muted);font-size:12px">(${created})</span></div>
-              <div class="tiny muted">${Number(e.bags||0)} bags • ${e.pricePerBag ? toINR(e.pricePerBag) : '-'} per bag • ${totalValue}</div>
-              ${e.party ? `<div class="tiny muted">Party: ${escapeHtml(e.party)}</div>` : ''}
-              ${e.note ? `<div class="tiny muted">Note: ${escapeHtml(e.note)}</div>` : ''}
+  if(sortedDates.length === 0) html = `<div class="tiny muted">No entries yet</div>`;
+  else {
+    for(const dateKey of sortedDates){
+      const dayEntries = grouped[dateKey];
+      const prettyDate = new Date(dateKey).toLocaleDateString('en-IN',{weekday:'short', day:'numeric', month:'short', year:'numeric'});
+      html += `<div class="ledger-day"><div style="font-weight:700;margin-bottom:8px">${prettyDate}</div>`;
+      dayEntries.forEach(e=>{
+        const mat = lastMaterials.find(m => m.id === e.materialId);
+        const matName = mat ? mat.name : e.materialId;
+        const isPurchase = (e.type === 'purchase');
+        html += `
+          <div class="entry-card">
+            <div class="entry-left">
+              <div class="${isPurchase ? 'badge-purchase' : 'badge-sale'}">${isPurchase ? 'Purchase' : 'Sale'}</div>
+              <div style="min-width:200px">
+                <div style="font-weight:700">${escapeHtml(matName)}</div>
+                <div class="mini">${Number(e.bags||0)} bags • ${e.pricePerBag ? toINR(e.pricePerBag) + ' /bag' : '—'} • ${toINR(e.totalValue||0)}</div>
+                <div class="mini">${e.party ? (isPurchase ? 'Bought from: ' : 'Sold to: ') + escapeHtml(e.party) : ''}</div>
+                <div class="mini">${e.note ? escapeHtml(e.note) : ''}</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <div class="mini">${fmtDate(e.createdAt)}</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn ghost" onclick="openEditEntryDialog('${e.id}')">Edit</button>
+                <button class="btn danger" onclick="deleteEntry('${e.id}')">Delete</button>
+              </div>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="text-align:right"><button class="btn ghost" onclick="openEditEntryDialog('${e.id}')">Edit</button></div>
-            <div style="text-align:right"><button class="btn danger" onclick="deleteEntry('${e.id}')">Delete</button></div>
-          </div>
-        </div>
-      `;
+        `;
+      });
+      html += `</div>`;
     }
   }
   container.innerHTML = html;
 }
 
-/* Edit entry (bags-based) */
+/* Edit entry dialog (bags) */
 async function openEditEntryDialog(entryId){
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   const eDoc = await entryRef.get();
   if(!eDoc.exists) return alert('Entry not found');
   const e = eDoc.data();
-  const matOptions = lastMaterials.map(m => `<option value="${m.id}" ${m.id === e.materialId ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+  const matOptions = lastMaterials.map(m => `<option value="${m.id}" ${m.id === e.materialId ? 'selected' : ''}>${m.name}</option>`).join('');
   showModal(`
     <div style="font-weight:700">Edit entry</div><hr>
     <label>Type</label><select id="ee_type"><option value="purchase">Purchase</option><option value="sale">Sale</option></select>
@@ -993,13 +921,11 @@ async function openEditEntryDialog(entryId){
 
         const oldQty = Number(old.bags || 0);
         const newQty = newBags;
-
         const oldMatCurrent = (oldMatSnap.data().stockBags !== undefined && oldMatSnap.data().stockBags !== null) ? Number(oldMatSnap.data().stockBags || 0) : (oldMatSnap.data().stockKg && oldMatSnap.data().kgPerBag ? (Number(oldMatSnap.data().stockKg) / Number(oldMatSnap.data().kgPerBag || 1)) : 0);
         const newMatCurrent = (newMatSnap.data().stockBags !== undefined && newMatSnap.data().stockBags !== null) ? Number(newMatSnap.data().stockBags || 0) : (newMatSnap.data().stockKg && newMatSnap.data().kgPerBag ? (Number(newMatSnap.data().stockKg) / Number(newMatSnap.data().kgPerBag || 1)) : 0);
 
         const oldMatAfterReverse = (old.type === 'purchase') ? (oldMatCurrent - oldQty) : (oldMatCurrent + oldQty);
         if(oldMatAfterReverse < -0.0001) throw new Error('Cannot reverse old entry (negative stock)');
-
         const newMatAfterApply = (newType === 'purchase') ? (newMatCurrent + newQty) : (newMatCurrent - newQty);
         if(newMatAfterApply < -0.0001) throw new Error('Not enough stock for this sale on new material');
 
@@ -1007,18 +933,16 @@ async function openEditEntryDialog(entryId){
         tx.update(newMatRef, { stockBags: newMatAfterApply, pricePerBag: newPrice || newMatSnap.data().pricePerBag || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
         const totalValue = newQty * (newPrice || 0);
-
         tx.update(entryRef, { type: newType, materialId: newMatId, bags: newQty, pricePerBag: newPrice || null, totalValue: totalValue || 0, party: newParty || '', note: newNote, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
         tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
-      alert('Entry updated');
-      closeModal();
+      alert('Entry updated'); closeModal();
     }catch(err){ alert('Update failed: ' + err.message); console.error(err); } finally { hideLoader(); }
   };
 }
 
-/* ---------- DELETE ENTRY ---------- */
+/* Delete entry (adjust bags) */
 async function deleteEntry(entryId){
   if(!confirm('Delete this entry? This will adjust the material stock accordingly.')) return;
   showLoader('Deleting entry…','Adjusting stock and removing entry');
@@ -1042,7 +966,7 @@ async function deleteEntry(entryId){
   }catch(err){ alert('Delete failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
-/* ---------- EXPORT CSV ---------- */
+/* ---------- Export CSV (bags) ---------- */
 document.getElementById('menuExport').addEventListener('click', async ()=>{
   showLoader('Exporting data…','Preparing CSV for download');
   try{
@@ -1064,23 +988,8 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
           const ed = e.data();
           const mat = matMap[ed.materialId] || {};
           rows.push([
-            cid,
-            cname,
-            ed.materialId || '',
-            mat.name || '',
-            mat.stockBags || '',
-            mat.lowStockBags || '',
-            mat.kgPerBag || '',
-            mat.pricePerBag || '',
-            e.id,
-            ed.type || '',
-            ed.bags || '',
-            ed.unit || '',
-            ed.pricePerBag || '',
-            ed.totalValue || '',
-            ed.party || '',
-            ed.note ? ed.note.replace(/\r?\n|\r/g,' ') : '',
-            ed.createdAt ? (ed.createdAt.toDate ? ed.createdAt.toDate().toLocaleString('en-IN') : ed.createdAt) : ''
+            cid, cname, ed.materialId || '', mat.name || '', mat.stockBags || '', mat.lowStockBags || '', mat.kgPerBag || '', mat.pricePerBag || '',
+            e.id, ed.type || '', ed.bags || '', ed.unit || '', ed.pricePerBag || '', ed.totalValue || '', ed.party || '', ed.note ? ed.note.replace(/\r?\n|\r/g,' ') : '', ed.createdAt ? (ed.createdAt.toDate ? ed.createdAt.toDate().toLocaleString('en-IN') : ed.createdAt) : ''
           ]);
         });
       }
@@ -1100,7 +1009,9 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
   finally{ hideLoader(); }
 });
 
-/* ---------- UI WIRING ---------- */
+/* ---------- Small helpers & wiring ---------- */
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 const drawer = document.getElementById('drawer');
 document.getElementById('hamb').addEventListener('click', ()=> {
   if(window.innerWidth <= 900){ drawer.classList.toggle('open'); } else { drawer.classList.toggle('hide'); }
@@ -1110,7 +1021,7 @@ document.getElementById('menuHistory').addEventListener('click', ()=> { closeDra
 document.getElementById('menuManage').addEventListener('click', ()=> { closeDrawer(); openManageModal(); });
 function closeDrawer(){ if(window.innerWidth <= 900) drawer.classList.remove('open'); else drawer.classList.add('hide'); }
 
-document.getElementById('btnHistoryTop').addEventListener('click', ()=> openHistoryModal());
+document.getElementById('btnHistory').addEventListener('click', ()=> openHistoryModal());
 document.getElementById('btnManage').addEventListener('click', ()=> openManageModal());
 
 document.getElementById('btnPurchase').addEventListener('click', ()=> {
@@ -1127,13 +1038,9 @@ document.getElementById('btnPurchase').addEventListener('click', ()=> {
   `);
   document.getElementById('g_cancel').onclick = closeModal;
   document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value;
-    const bags = Number(document.getElementById('g_bags').value);
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
-    const party = document.getElementById('g_party').value || '';
-    const note = document.getElementById('g_note').value || '';
-    await addEntryBags(mid,'purchase',bags,price,party,note);
-    closeModal();
+    const mid = document.getElementById('g_mat').value; const bags = Number(document.getElementById('g_bags').value);
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const party = document.getElementById('g_party').value || ''; const note = document.getElementById('g_note').value || '';
+    await addEntryBags(mid,'purchase',bags,price,party,note); closeModal();
   };
 });
 
@@ -1151,17 +1058,15 @@ document.getElementById('btnSale').addEventListener('click', ()=> {
   `);
   document.getElementById('g_cancel').onclick = closeModal;
   document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value;
-    const bags = Number(document.getElementById('g_bags').value);
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
-    const party = document.getElementById('g_party').value || '';
-    const note = document.getElementById('g_note').value || '';
-    await addEntryBags(mid,'sale',bags,price,party,note);
-    closeModal();
+    const mid = document.getElementById('g_mat').value; const bags = Number(document.getElementById('g_bags').value);
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const party = document.getElementById('g_party').value || ''; const note = document.getElementById('g_note').value || '';
+    await addEntryBags(mid,'sale',bags,price,party,note); closeModal();
   };
 });
 
-/* expose for inline handlers */
+document.getElementById('btnToday').addEventListener('click', ()=> openTodayModal());
+
+/* Expose for inline handlers */
 window.openQuickPurchase = openQuickPurchase;
 window.openQuickSale = openQuickSale;
 window.openMaterialEditorDialog = openMaterialEditorDialog;
@@ -1171,7 +1076,7 @@ window.deleteEntry = deleteEntry;
 window.openEditEntryDialog = openEditEntryDialog;
 window.deleteMaterial = deleteMaterial;
 
-/* ---------- BOOTSTRAP ---------- */
+/* ---------- Init ---------- */
 (async function init(){
   showLoader('Initializing…','Connecting to Firebase');
   try{
