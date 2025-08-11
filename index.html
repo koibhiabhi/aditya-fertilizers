@@ -4,63 +4,38 @@
   <meta charset="utf-8" />
   <title>Aditya Fertilizers & Adi Manures — Supply App (Firebase)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Chart.js for simple bars -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Firebase (compat builds for easier single-file usage) -->
+  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
   <style>
-    /* ====== Styling: clean, responsive ====== */
-    :root{
-      --bg:#f3f6f8; --card:#fff; --muted:#6b7280; --accent:#0f766e; --warn:#047857; --danger:#b91c1c;
-      --sidebar-w:320px;
-      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:#07223b;min-height:100vh}
+    :root{--bg:#f3f6f8;--card:#fff;--muted:#6b7280;--accent:#0f766e;--warn:#047857;--danger:#b91c1c;--sidebar-w:320px;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:#07223b;min-height:100vh}
     header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(90deg,#fff,#f8fafc);border-bottom:1px solid rgba(2,6,23,0.04);position:sticky;top:0;z-index:200}
     .hamburger{width:42px;height:42px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(12,15,20,0.06)}
-    .title{font-weight:700;font-size:16px}
-    .subtitle{font-size:12px;color:var(--muted)}
+    .title{font-weight:700;font-size:16px} .subtitle{font-size:12px;color:var(--muted)}
     main{display:flex;gap:18px;padding:18px;align-items:flex-start}
     .drawer{width:var(--sidebar-w);min-width:var(--sidebar-w);max-height:calc(100vh - 88px);overflow:auto;padding:14px;border-radius:12px;background:var(--card);box-shadow:0 8px 28px rgba(12,15,20,0.06)}
-    .drawer.hide{display:none}
-    .content{flex:1}
+    .drawer.hide{display:none} .content{flex:1}
     .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(12,15,20,0.04);margin-bottom:16px}
     label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
     select,input,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef0;background:white}
-    .row{display:flex;gap:8px}
     .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:white;font-weight:600}
     .btn.ghost{background:transparent;border:1px solid #e6eef0;color:var(--accent)}
-    .btn.warn{background:var(--warn)}
-    .btn.danger{background:var(--danger)}
+    .btn.warn{background:var(--warn)} .btn.danger{background:var(--danger)}
     .muted{color:var(--muted);font-size:13px}
     .materials{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
     .mat-card{padding:12px;border-radius:10px;border:1px solid #f1f5f7;background:linear-gradient(180deg,#fff,#fbfdfb)}
-    .mat-name{font-weight:700;font-size:15px}
-    .mat-qty{font-size:20px;margin-top:6px}
-    .low{color:var(--danger);font-weight:700}
-    .controls{display:flex;gap:8px;flex-wrap:wrap}
-    .footer{font-size:12px;color:var(--muted);margin-top:8px}
-    .menu-item{padding:10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
-    .menu-item:hover{background:#f6fbfb}
-    .small{font-size:13px;color:var(--muted)}
-    @media (max-width:900px){
-      main{flex-direction:column;padding:12px}
-      .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:50;transform:translateX(-120%);transition:transform .22s ease}
-      .drawer.open{transform:translateX(0)}
-      .drawer.hide{display:block}
-    }
-    .right{margin-left:auto}
-    .tiny{font-size:12px;color:var(--muted)}
+    .mat-name{font-weight:700;font-size:15px} .mat-qty{font-size:20px;margin-top:6px}
+    .low{color:var(--danger);font-weight:700} .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .menu-item{padding:10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center} .menu-item:hover{background:#f6fbfb}
+    .small{font-size:13px;color:var(--muted)} .right{margin-left:auto} .tiny{font-size:12px;color:var(--muted)}
     .chart-wrap{height:220px}
     .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.35);display:flex;align-items:center;justify-content:center;z-index:60}
     .modal{width:92%;max-width:720px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.18)}
-    .muted-block{background:#f8fafc;padding:8px;border-radius:8px;border:1px solid #eef2f2;margin-top:8px}
-    .smalllink{color:var(--accent);cursor:pointer;text-decoration:underline;font-size:13px}
+    @media (max-width:900px){ main{flex-direction:column;padding:12px} .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:50;transform:translateX(-120%);transition:transform .22s ease} .drawer.open{transform:translateX(0)} .drawer.hide{display:block} }
   </style>
 </head>
 <body>
@@ -72,19 +47,17 @@
       <div class="title">Aditya Fertilizers & Adi Manures</div>
       <div class="subtitle">Simple supply management — single admin (Firebase)</div>
     </div>
-    <div class="right tiny" style="margin-left:12px">Status: <span id="statusLabel">Offline</span></div>
+    <div class="right tiny" style="margin-left:12px">Status: <span id="statusLabel">Initializing…</span></div>
   </header>
 
   <main>
-    <!-- Drawer -->
     <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <div style="font-weight:700">Admin Menu</div>
-        <div style="margin-left:auto" class="small muted">Only admin can edit</div>
+        <div style="margin-left:auto" class="small muted">Single admin</div>
       </div>
 
-      <!-- Company selector inside menu only -->
-      <label>Company (manage here)</label>
+      <label>Company (select here)</label>
       <select id="companySelect"></select>
 
       <div style="margin-top:10px">
@@ -95,24 +68,9 @@
 
       <hr>
 
-      <!-- Authentication actions -->
-      <div id="authBlock">
-        <div id="signedOut">
-          <label style="margin-top:8px">Admin sign-in</label>
-          <input id="authEmail" placeholder="Email" />
-          <input id="authPass" placeholder="Password" type="password" style="margin-top:6px" />
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn" id="signInBtn">Sign in</button>
-            <button class="btn ghost" id="signUpBtn">Create admin</button>
-          </div>
-          <div class="tiny muted" style="margin-top:8px">Create a single admin account (email/password) and use it to manage data. Sign-in required to write data.</div>
-        </div>
-        <div id="signedIn" style="display:none">
-          <div style="display:flex;gap:8px;align-items:center">
-            <div style="font-weight:700" id="adminEmail">admin@you.com</div>
-            <button class="btn ghost right" id="signOutBtn">Sign out</button>
-          </div>
-        </div>
+      <div id="adminInfo" style="margin-top:8px">
+        <div style="font-weight:700" id="adminEmail">admin</div>
+        <div class="tiny muted">Signed in automatically</div>
       </div>
 
       <hr>
@@ -123,16 +81,15 @@
       <div class="menu-item" id="menuSeed"><div>Seed sample data</div><div class="small">(admin only)</div></div>
 
       <div class="footer" style="margin-top:12px">
-        <div class="tiny muted">Firebase setup: create a project, enable Firestore and Email/Password Auth. Paste your Firebase config in the app file (see top comments).</div>
+        <div class="tiny muted">Firestore write access restricted to signed-in admin. For production, lock rules to the admin UID.</div>
       </div>
     </aside>
 
-    <!-- Main content -->
     <section class="content">
       <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div>
           <div style="font-weight:700" id="mainCompanyName">Select a company</div>
-          <div class="tiny muted">Company is chosen from the admin menu</div>
+          <div class="tiny muted">Company chosen in the menu</div>
         </div>
         <div style="flex:1">
           <label>Quick actions</label>
@@ -150,7 +107,6 @@
       </div>
 
       <div id="dashboardArea"></div>
-
       <div id="modalRoot"></div>
     </section>
   </main>
@@ -158,26 +114,12 @@
   <input id="fileInput" type="file" accept=".json" style="display:none" />
 
 <script>
-/*
-  Firebase rewrite — single-file SPA
-  -------------------------------
-  Config inserted below using data provided.
-
-  Make sure Firestore is enabled and Authentication (Email/Password) is ON.
-  Set Firestore rules for development:
-    rules_version = '2';
-    service cloud.firestore {
-      match /databases/{database}/documents {
-        match /{document=**} {
-          allow read: if true;
-          allow write: if request.auth != null;
-        }
-      }
-    }
-  For production, restrict writes to a specific admin UID or use custom claims.
-*/
-
-/* ========== FIREBASE CONFIG INSERTED ========== */
+/* ===========================
+   CONFIG
+   - FIREBASE_CONFIG: your project config (kept here because you already provided it)
+   - AUTO_SIGNIN: set to true to sign in automatically with the ADMIN_EMAIL/PWD
+   NOTE: storing credentials in a public HTML is insecure. Use only for controlled access.
+   =========================== */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBEybu3XKeK3QOeRIMs-fK2dDwHtpCTqgQ",
   authDomain: "aditya-supply-chain-b5f61.firebaseapp.com",
@@ -188,178 +130,182 @@ const FIREBASE_CONFIG = {
   measurementId: "G-DQH00BNH1L"
 };
 
-if(!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey){
-  console.warn('Firebase config missing. Paste your Firebase web config into FIREBASE_CONFIG in the HTML.');
-  document.getElementById('statusLabel').textContent = 'No Firebase config';
-}
+// ---- Hardcoded admin credentials requested by you ----
+const AUTO_SIGNIN = true;
+const ADMIN_EMAIL = 'adityajainaas@gmail.com';
+const ADMIN_PWD = 'Aditya@1609';
+/* =========================== */
 
-/* Firebase init */
 let db = null, auth = null;
 if(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
   auth = firebase.auth();
-  document.getElementById('statusLabel').textContent = 'Connected (initializing...)';
+  document.getElementById('statusLabel').textContent = 'Firebase ready';
+} else {
+  document.getElementById('statusLabel').textContent = 'No Firebase config';
 }
 
-/* ========== App state & helpers ========== */
+/* App state and listeners */
 let currentCompanyId = null;
-let materialsListener = null;
-let entriesListener = null;
-let lastMaterials = [];
-let lastEntriesSnapshot = [];
+let materialsUnsub = null;
+let entriesUnsub = null;
+let lastMaterials = [];      // array of {id, ...data}
+let lastEntries = [];        // array of entry objects
 
-function uid(prefix='id'){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
-function fmtDate(ts){
-  if(!ts) return '-';
-  if(ts.toDate) return ts.toDate().toLocaleString('en-IN');
-  return new Date(ts.seconds ? ts.seconds*1000 : ts).toLocaleString('en-IN');
-}
-function toINR(x){ if(!x && x!==0) return '-'; return '₹'+Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+/* Utility helpers */
+function uid(prefix='id'){ return prefix + '-' + Math.random().toString(36).slice(2,9); }
+function fmtDate(ts){ if(!ts) return '-'; if(ts.toDate) return ts.toDate().toLocaleString('en-IN'); if(ts.seconds) return new Date(ts.seconds*1000).toLocaleString('en-IN'); return new Date(ts).toLocaleString('en-IN'); }
+function toINR(x){ if(x===undefined||x===null) return '-'; return '₹' + Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 
-/* ========== UI helpers ========== */
-function showModal(html, onBackdropClick){
+/* Modal helpers */
+function showModal(html){
   const root = document.getElementById('modalRoot');
   root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop"><div class="modal">${html}</div></div>`;
-  document.getElementById('modalBackdrop').addEventListener('click', (e)=>{
-    if(e.target.id === 'modalBackdrop'){ root.innerHTML=''; if(onBackdropClick) onBackdropClick(); }
-  });
+  document.getElementById('modalBackdrop').addEventListener('click', (e)=>{ if(e.target.id==='modalBackdrop') root.innerHTML=''; });
 }
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
 
-/* ========== Auth handling ========== */
-const signedInBlock = document.getElementById('signedIn');
-const signedOutBlock = document.getElementById('signedOut');
-const adminEmailEl = document.getElementById('adminEmail');
-
-if(auth){
+/* ---------- Authentication (auto sign-in) ---------- */
+async function ensureSignedIn() {
+  if(!auth) return;
+  // On auth state changed - update UI
   auth.onAuthStateChanged(user=>{
     if(user){
-      signedOutBlock.style.display='none';
-      signedInBlock.style.display='block';
-      adminEmailEl.textContent = user.email || user.uid;
+      document.getElementById('adminEmail').textContent = user.email || user.uid;
       document.getElementById('statusLabel').textContent = 'Signed in';
     } else {
-      signedOutBlock.style.display='block';
-      signedInBlock.style.display='none';
+      document.getElementById('adminEmail').textContent = 'Not signed';
       document.getElementById('statusLabel').textContent = 'Signed out';
     }
   });
+
+  if(AUTO_SIGNIN){
+    try {
+      // sign in silently (if already signed in, this will succeed or remain signed in)
+      await auth.signInWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PWD);
+      console.log('Auto-signed in as', ADMIN_EMAIL);
+    } catch(err) {
+      console.warn('Auto sign-in failed:', err.message);
+      // still proceed; user must sign-in manually elsewhere if needed
+      document.getElementById('statusLabel').textContent = 'Sign-in failed';
+    }
+  }
 }
 
-/* Sign-in, sign-up, sign-out wiring */
-document.getElementById('signInBtn').addEventListener('click', async ()=>{
-  const email = document.getElementById('authEmail').value.trim();
-  const pass = document.getElementById('authPass').value;
-  if(!email||!pass) return alert('Enter email & password');
-  try{ await auth.signInWithEmailAndPassword(email, pass); alert('Signed in'); }catch(e){ alert('Sign-in failed: '+e.message); }
-});
-document.getElementById('signUpBtn').addEventListener('click', async ()=>{
-  const email = document.getElementById('authEmail').value.trim();
-  const pass = document.getElementById('authPass').value;
-  if(!email||!pass) return alert('Enter email & password');
-  if(!confirm('Create admin user? This will create a user in Firebase Authentication.')) return;
-  try{ await auth.createUserWithEmailAndPassword(email, pass); alert('Admin user created and signed in.'); }catch(e){ alert('Create failed: '+e.message); }
-});
-document.getElementById('signOutBtn').addEventListener('click', async ()=>{
-  try{ await auth.signOut(); alert('Signed out'); }catch(e){ alert('Error signing out: '+e.message); }
-});
-
-/* ========== Company & listeners ========== */
+/* ---------- Companies: load and selection ---------- */
 async function loadCompaniesToMenu(){
   if(!db) return;
-  const sels = document.getElementById('companySelect');
-  sels.innerHTML = '';
-  const snapshot = await db.collection('companies').orderBy('name').get();
-  snapshot.forEach(doc=>{
+  const sel = document.getElementById('companySelect');
+  sel.innerHTML = '';
+  const snap = await db.collection('companies').orderBy('name').get();
+  snap.forEach(doc => {
     const opt = document.createElement('option');
     opt.value = doc.id;
     opt.textContent = doc.data().name;
-    sels.appendChild(opt);
+    sel.appendChild(opt);
   });
-  if(!currentCompanyId && sels.options.length) {
-    currentCompanyId = sels.options[0].value;
-    sels.value = currentCompanyId;
-    document.getElementById('mainCompanyName').textContent = sels.options[0].textContent;
-    startCompanyListeners(currentCompanyId);
-  } else if(currentCompanyId){
-    sels.value = currentCompanyId;
+
+  // if currentCompanyId missing or was deleted, choose first available
+  if(sel.options.length === 0) {
+    currentCompanyId = null;
+    document.getElementById('mainCompanyName').textContent = 'No company';
+    renderEmptyDashboard();
+    return;
   }
+
+  if(!currentCompanyId || !Array.from(sel.options).some(o=>o.value === currentCompanyId)){
+    currentCompanyId = sel.options[0].value;
+  }
+  sel.value = currentCompanyId;
+  document.getElementById('mainCompanyName').textContent = sel.options[sel.selectedIndex].textContent;
+  startCompanyListeners(currentCompanyId);
 }
+
+/* When admin changes company from the menu */
 document.getElementById('companySelect').addEventListener('change', ()=>{
   const sel = document.getElementById('companySelect');
   currentCompanyId = sel.value;
-  const label = sel.options[sel.selectedIndex].text;
-  document.getElementById('mainCompanyName').textContent = label;
+  document.getElementById('mainCompanyName').textContent = sel.options[sel.selectedIndex].textContent;
   startCompanyListeners(currentCompanyId);
 });
 
+/* ---------- Listeners: materials & entries ---------- */
+function clearPreviousListeners(){
+  if(typeof materialsUnsub === 'function'){ try{ materialsUnsub(); }catch(e){} materialsUnsub = null; }
+  if(typeof entriesUnsub === 'function'){ try{ entriesUnsub(); }catch(e){} entriesUnsub = null; }
+  lastMaterials = []; lastEntries = [];
+}
+
 function startCompanyListeners(companyId){
-  if(materialsListener) materialsListener();
-  if(entriesListener) entriesListener();
   if(!db) return;
+  clearPreviousListeners();
+  // materials
+  const matsRef = db.collection('companies').doc(companyId).collection('materials').orderBy('name');
+  materialsUnsub = matsRef.onSnapshot(qsnap=>{
+    lastMaterials = qsnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderMaterials(lastMaterials);
+  }, err => console.error('materials listener error', err));
 
-  const materialsRef = db.collection('companies').doc(companyId).collection('materials').orderBy('name');
-  materialsListener = materialsRef.onSnapshot(snapshot=>{
-    renderMaterialsSnapshot(snapshot);
-  });
-
-  const entriesRef = db.collection('companies').doc(companyId).collection('entries').orderBy('createdAt','desc').limit(200);
-  entriesListener = entriesRef.onSnapshot(snapshot=>{
-    lastEntriesSnapshot = [];
-    snapshot.forEach(doc=> { const d=doc.data(); d.id=doc.id; lastEntriesSnapshot.push(d); });
-    // refresh history if open
+  // entries
+  const entRef = db.collection('companies').doc(companyId).collection('entries').orderBy('createdAt','desc').limit(500);
+  entriesUnsub = entRef.onSnapshot(qsnap=>{
+    lastEntries = qsnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // if history modal open, refresh its contents
     const modalRoot = document.getElementById('modalRoot');
     if(modalRoot.innerHTML && modalRoot.innerHTML.includes('History —')) openHistoryModal();
-  });
+  }, err => console.error('entries listener error', err));
 
+  // company doc update timestamp
   db.collection('companies').doc(companyId).onSnapshot(doc=>{
-    const data = doc.data();
-    document.getElementById('lastUpdated').textContent = data && data.updatedAt ? fmtDate(data.updatedAt) : '-';
+    const dd = doc.data();
+    document.getElementById('lastUpdated').textContent = dd && dd.updatedAt ? fmtDate(dd.updatedAt) : '-';
   });
 }
 
-/* Render materials */
-function renderMaterialsSnapshot(snapshot){
+/* ---------- Dashboard rendering ---------- */
+function renderEmptyDashboard(){
+  document.getElementById('dashboardArea').innerHTML = '<div class="card tiny muted">No company selected / no data.</div>';
+}
+
+function renderMaterials(materials){
   const area = document.getElementById('dashboardArea');
   area.innerHTML = '';
-  lastMaterials = [];
-  const mats = [];
-  snapshot.forEach(doc=>{
-    const d = doc.data(); d.id = doc.id; mats.push(d); lastMaterials.push(d);
-  });
 
+  // header card
   const header = document.createElement('div'); header.className='card';
   const companyText = document.getElementById('mainCompanyName').textContent || 'Company';
   header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
     <div><div style="font-weight:700">${companyText}</div><div class="tiny muted">Stock overview</div></div>
-    <div class="tiny muted">Materials: ${mats.length}</div>
+    <div class="tiny muted">Materials: ${materials.length}</div>
   </div>`;
   area.appendChild(header);
 
-  const gridWrap = document.createElement('div'); gridWrap.className='card';
-  const grid = document.createElement('div'); grid.className='materials';
-  for(const m of mats){
+  // materials grid
+  const matCard = document.createElement('div'); matCard.className='card';
+  const grid = document.createElement('div'); grid.className = 'materials';
+  materials.forEach(m=>{
     const stk = Math.round((m.stockKg||0)*100)/100;
     const div = document.createElement('div'); div.className='mat-card';
     div.innerHTML = `<div class="mat-name">${m.name}</div>
-      <div class="mat-qty ${stk <= (m.lowStockKg || 0) ? 'low' : ''}">${stk} kg</div>
+      <div class="mat-qty ${stk <= (m.lowStockKg||0) ? 'low' : ''}">${stk} kg</div>
       <div class="tiny muted" style="margin-top:6px">Low threshold: ${(m.lowStockKg||0)} kg</div>
       <div style="margin-top:10px;display:flex;gap:8px">
-         <button class="btn" onclick="openQuickInflow('${m.id}','${m.name}')">Add Inflow</button>
-         <button class="btn warn" onclick="openQuickOutflow('${m.id}','${m.name}')">Add Outflow</button>
-         <button class="btn ghost" onclick="openMaterialEditor('${m.id}')">Edit</button>
+        <button class="btn" onclick="openQuickInflow('${m.id}','${m.name}')">Add Inflow</button>
+        <button class="btn warn" onclick="openQuickOutflow('${m.id}','${m.name}')">Add Outflow</button>
+        <button class="btn ghost" onclick="openMaterialEditorDialog('${m.id}')">Edit</button>
       </div>`;
     grid.appendChild(div);
-  }
-  gridWrap.appendChild(grid);
-  area.appendChild(gridWrap);
+  });
+  matCard.appendChild(grid);
+  area.appendChild(matCard);
 
-  const lows = mats.filter(m => (m.stockKg||0) <= (m.lowStockKg||0));
+  // low stock card
+  const lows = materials.filter(m => (m.stockKg||0) <= (m.lowStockKg||0));
   if(lows.length){
     const lowCard = document.createElement('div'); lowCard.className='card';
     lowCard.innerHTML = `<div style="font-weight:700;color:var(--danger)">Low stock alert</div>`;
-    for(const m of lows){
+    lows.forEach(m=>{
       const s = Math.round((m.stockKg||0)*100)/100;
       const row = document.createElement('div'); row.style.marginTop='8px';
       row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
@@ -367,81 +313,107 @@ function renderMaterialsSnapshot(snapshot){
         <div><button class="btn" onclick="openQuickInflow('${m.id}','${m.name}')">Restock</button></div>
       </div>`;
       lowCard.appendChild(row);
-    }
+    });
     area.appendChild(lowCard);
   }
 
+  // chart
   const chartCard = document.createElement('div'); chartCard.className='card';
-  chartCard.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">Stock levels</div><div class="tiny muted">kg per material</div></div><div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>`;
+  chartCard.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">Stock levels</div><div class="tiny muted">kg per material</div></div>
+    <div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>`;
   area.appendChild(chartCard);
 
-  const labels = mats.map(m=>m.name);
-  const data = mats.map(m=>m.stockKg || 0);
+  const labels = materials.map(m=>m.name), data = materials.map(m=>m.stockKg||0);
   const ctx = document.getElementById('stockCanvas').getContext('2d');
-  if(window._stockChart) window._stockChart.destroy();
-  window._stockChart = new Chart(ctx, {
-    type:'bar', data:{ labels, datasets:[{ label:'kg', data }] }, options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true } } }
-  });
+  if(window.__stockChart) window.__stockChart.destroy();
+  window.__stockChart = new Chart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'kg', data }] }, options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ beginAtZero:true } } } });
 }
 
-/* ========== Entry add (transaction) ========== */
-async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
-  if(!currentCompanyId) return alert('Select a company in admin menu first.');
-  if(!auth.currentUser) return alert('Sign in as admin to make changes.');
-  if(qtyRaw <= 0) return alert('Invalid quantity');
+/* ---------- Entries (history) ---------- */
+function openHistoryModal(){
+  if(!currentCompanyId) return alert('Select a company in the admin menu first.');
+  showModal(`<div style="font-weight:700">History — ${document.getElementById('mainCompanyName').textContent}</div><hr>
+    <div id="historyContainer" style="max-height:60vh;overflow:auto"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="h_close">Close</button></div>`);
+  document.getElementById('h_close').onclick = closeModal;
+  renderHistory();
+}
+function renderHistory(){
+  const container = document.getElementById('historyContainer');
+  if(!container) return;
+  const rows = lastEntries.map(e=>{
+    const m = lastMaterials.find(mm => mm.id === e.materialId);
+    const matName = m ? m.name : e.materialId;
+    const amount = e.pricePerKg ? (e.pricePerKg * (e.quantityKg || 0)) : '';
+    return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${fmtDate(e.createdAt)}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${e.type}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${matName}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${Math.round((e.quantityKg||0)*100)/100} kg <div class="tiny muted">${e.qtyRaw} ${e.unit}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${amount ? toINR(amount) : '-'}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${e.note || ''}</td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;white-space:nowrap">
+        <button class="btn ghost" onclick="openEditEntryDialog('${e.id}')">Edit</button>
+        <button class="btn danger" onclick="deleteEntry('${e.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Date</th><th>Type</th><th>Material</th><th>Qty</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan=7 class="tiny muted">No entries yet</td></tr>'}</tbody></table>`;
+}
 
-  const companyDocRef = db.collection('companies').doc(currentCompanyId);
-  const materialDocRef = companyDocRef.collection('materials').doc(materialId);
-  const entriesCol = companyDocRef.collection('entries');
+/* ---------- Add entry transaction (inflow/outflow) ---------- */
+async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
+  if(!currentCompanyId) return alert('Select a company first.');
+  if(!auth || !auth.currentUser) return alert('Admin not signed in.');
+  if(!materialId || qtyRaw <= 0) return alert('Invalid material or qty');
+
+  const companyRef = db.collection('companies').doc(currentCompanyId);
+  const materialRef = companyRef.collection('materials').doc(materialId);
+  const entriesCol = companyRef.collection('entries');
 
   try{
-    await db.runTransaction(async (tx) => {
-      const matSnap = await tx.get(materialDocRef);
-      if(!matSnap.exists) throw new Error('Material not found');
+    await db.runTransaction(async tx => {
+      const matSnap = await tx.get(materialRef);
+      if(!matSnap.exists) throw new Error('Material missing');
       const mat = matSnap.data();
       let qtyKg = qtyRaw;
       if(unit !== 'kg'){
         const map = mat.unitMappings || {};
-        if(!map[unit]) throw new Error('Unit mapping not found for this material');
+        if(!map[unit]) throw new Error('Unit mapping not available for this material');
         qtyKg = qtyRaw * map[unit];
       }
+      // create entry
       const entryRef = entriesCol.doc();
-      const entryData = {
-        type,
-        materialId,
-        qtyRaw,
-        unit,
-        quantityKg: qtyKg,
-        pricePerKg: pricePerKg || null,
-        note: note || '',
+      tx.set(entryRef, {
+        type, materialId, qtyRaw, unit, quantityKg: qtyKg,
+        pricePerKg: pricePerKg || null, note: note || '',
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy: auth.currentUser ? auth.currentUser.uid : null
-      };
-      tx.set(entryRef, entryData);
+        createdBy: auth.currentUser.uid
+      });
+      // update stock atomically
       const currentStock = mat.stockKg || 0;
-      const newStock = type === 'inflow' ? (currentStock + qtyKg) : (currentStock - qtyKg);
-      if(newStock < 0) throw new Error('Not enough stock to remove that much.');
-      tx.update(materialDocRef, { stockKg: newStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      tx.update(companyDocRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      const newStock = (type === 'inflow') ? (currentStock + qtyKg) : (currentStock - qtyKg);
+      if(newStock < 0) throw new Error('Not enough stock for this outflow');
+      tx.update(materialRef, { stockKg: newStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      tx.update(companyRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
-    alert('Saved');
-  }catch(e){
-    alert('Save failed: ' + e.message);
-    console.error(e);
+  } catch(err) {
+    alert('Save failed: ' + (err.message || err));
+    console.error(err);
+    return;
   }
+  // success will trigger listeners and UI will auto-update
 }
 
-/* Quick inflow/outflow UI */
+/* ---------- Quick inflow/outflow UI ---------- */
 function openQuickInflow(materialId, materialName){
-  const mat = lastMaterials.find(m => m.id === materialId);
-  const mapOptions = mat ? Object.keys(mat.unitMappings || {}).map(u=>`<option value="${u}">${u} (= ${mat.unitMappings[u]} kg)</option>`).join('') : '';
-  const html = `<div style="font-weight:700">Add inflow — ${materialName}</div><hr>
-    <label>Quantity</label>
-    <div style="display:flex;gap:8px"><input id="iq_qty" type="number" placeholder="e.g. 50" /><select id="iq_unit"><option value="kg">kg</option>${mapOptions}</select></div>
+  const mat = lastMaterials.find(m => m.id === materialId) || {};
+  const mapOptions = Object.keys(mat.unitMappings || {}).map(u => `<option value="${u}">${u} (= ${mat.unitMappings[u]} kg)</option>`).join('');
+  showModal(`<div style="font-weight:700">Add inflow — ${materialName}</div><hr>
+    <label>Quantity</label><div style="display:flex;gap:8px"><input id="iq_qty" type="number" placeholder="e.g. 50" /><select id="iq_unit"><option value="kg">kg</option>${mapOptions}</select></div>
     <label>Price per kg (optional)</label><input id="iq_price" type="number" step="0.01" />
     <label>Note</label><input id="iq_note" />
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="iq_cancel">Cancel</button><button class="btn" id="iq_save">Confirm & Save</button></div>`;
-  showModal(html);
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="iq_cancel">Cancel</button><button class="btn" id="iq_save">Confirm & Save</button></div>`);
   document.getElementById('iq_cancel').onclick = closeModal;
   document.getElementById('iq_save').onclick = async ()=>{
     const qty = Number(document.getElementById('iq_qty').value);
@@ -452,17 +424,14 @@ function openQuickInflow(materialId, materialName){
     closeModal();
   };
 }
-
 function openQuickOutflow(materialId, materialName){
-  const mat = lastMaterials.find(m => m.id === materialId);
-  const mapOptions = mat ? Object.keys(mat.unitMappings || {}).map(u=>`<option value="${u}">${u} (= ${mat.unitMappings[u]} kg)</option>`).join('') : '';
-  const html = `<div style="font-weight:700">Add outflow — ${materialName}</div><hr>
-    <label>Quantity</label>
-    <div style="display:flex;gap:8px"><input id="oq_qty" type="number" placeholder="e.g. 2" /><select id="oq_unit"><option value="kg">kg</option>${mapOptions}</select></div>
+  const mat = lastMaterials.find(m => m.id === materialId) || {};
+  const mapOptions = Object.keys(mat.unitMappings || {}).map(u => `<option value="${u}">${u} (= ${mat.unitMappings[u]} kg)</option>`).join('');
+  showModal(`<div style="font-weight:700">Add outflow — ${materialName}</div><hr>
+    <label>Quantity</label><div style="display:flex;gap:8px"><input id="oq_qty" type="number" placeholder="e.g. 2" /><select id="oq_unit"><option value="kg">kg</option>${mapOptions}</select></div>
     <label>Price per kg (optional)</label><input id="oq_price" type="number" step="0.01" />
     <label>Note</label><input id="oq_note" />
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="oq_cancel">Cancel</button><button class="btn warn" id="oq_save">Confirm & Save</button></div>`;
-  showModal(html);
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="oq_cancel">Cancel</button><button class="btn warn" id="oq_save">Confirm & Save</button></div>`);
   document.getElementById('oq_cancel').onclick = closeModal;
   document.getElementById('oq_save').onclick = async ()=>{
     const qty = Number(document.getElementById('oq_qty').value);
@@ -474,7 +443,7 @@ function openQuickOutflow(materialId, materialName){
   };
 }
 
-/* Manage modal */
+/* ---------- Manage (companies & materials) ---------- */
 function openManageModal(){
   showModal(`<div style="font-weight:700">Manage Companies & Materials</div><hr>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -491,17 +460,16 @@ function openManageModal(){
   document.getElementById('mg_close').onclick = closeModal;
   document.getElementById('mg_addCompany').onclick = addCompanyFromModal;
   document.getElementById('mg_addMaterial').onclick = addMaterialFromModal;
-  renderManageCompanies(); renderManageMaterials();
+  renderManageCompanies();
+  renderManageMaterials();
 }
-
 async function renderManageCompanies(){
-  const el = document.getElementById('mg_companies');
-  el.innerHTML = '';
+  const el = document.getElementById('mg_companies'); el.innerHTML = '';
   const snap = await db.collection('companies').orderBy('name').get();
   snap.forEach(doc=>{
     const d = doc.data();
     const wrap = document.createElement('div'); wrap.style.display='flex'; wrap.style.justifyContent='space-between'; wrap.style.padding='8px'; wrap.style.border='1px solid #f1f5f7'; wrap.style.marginBottom='6px'; wrap.style.borderRadius='8px';
-    wrap.innerHTML = `<div><strong>${d.name}</strong><div class="tiny muted">${d.createdAt ? fmtDate(d.createdAt) : ''}</div></div>`;
+    wrap.innerHTML = `<div><strong>${d.name}</strong><div class="tiny muted">${d.createdAt?fmtDate(d.createdAt):''}</div></div>`;
     const r = document.createElement('div');
     const sel = document.createElement('button'); sel.className='btn ghost'; sel.textContent='Select'; sel.onclick = ()=> {
       currentCompanyId = doc.id;
@@ -510,255 +478,165 @@ async function renderManageCompanies(){
       startCompanyListeners(doc.id);
     };
     const del = document.createElement('button'); del.className='btn danger'; del.textContent='Delete'; del.onclick = async ()=>{
-      if(!confirm('Delete company and all its materials & entries? This cannot be undone.')) return;
+      if(!confirm('Delete company and all its materials & entries? This is irreversible.')) return;
+      // delete subcollections (materials & entries)
       const matSnap = await db.collection('companies').doc(doc.id).collection('materials').get();
-      const batch = db.batch();
-      matSnap.forEach(m=> batch.delete(m.ref));
       const entSnap = await db.collection('companies').doc(doc.id).collection('entries').get();
-      entSnap.forEach(e=> batch.delete(e.ref));
+      const batch = db.batch();
+      matSnap.forEach(m=>batch.delete(m.ref));
+      entSnap.forEach(e=>batch.delete(e.ref));
       batch.delete(db.collection('companies').doc(doc.id));
       await batch.commit();
-      alert('Deleted company and its documents.');
-      renderManageCompanies(); loadCompaniesToMenu(); renderMaterialsSnapshot(await db.collection('companies').doc(currentCompanyId).collection('materials').get());
+      // refresh
+      await loadCompaniesToMenu();
+      renderManageCompanies();
+      renderManageMaterials();
     };
-    r.appendChild(sel); r.appendChild(del);
-    wrap.appendChild(r);
-    el.appendChild(wrap);
+    r.appendChild(sel); r.appendChild(del); wrap.appendChild(r); el.appendChild(wrap);
   });
 }
-
 async function addCompanyFromModal(){
-  const name = document.getElementById('mg_newCompany').value.trim();
-  if(!name) return alert('Enter name');
-  const docRef = db.collection('companies').doc();
-  await docRef.set({ name, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-  document.getElementById('mg_newCompany').value='';
-  renderManageCompanies(); loadCompaniesToMenu();
+  const name = document.getElementById('mg_newCompany').value.trim(); if(!name) return alert('Enter name');
+  const docRef = db.collection('companies').doc(); await docRef.set({ name, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  document.getElementById('mg_newCompany').value=''; await loadCompaniesToMenu(); renderManageCompanies(); renderManageMaterials();
 }
-
 async function renderManageMaterials(){
-  const el = document.getElementById('mg_materials');
-  el.innerHTML = '';
-  if(!currentCompanyId){
-    el.innerHTML = '<div class="tiny muted">Select a company first (top-left).</div>';
-    return;
-  }
+  const el = document.getElementById('mg_materials'); el.innerHTML='';
+  if(!currentCompanyId){ el.innerHTML = '<div class="tiny muted">Select a company first (menu)</div>'; return; }
   const matSnap = await db.collection('companies').doc(currentCompanyId).collection('materials').orderBy('name').get();
   matSnap.forEach(doc=>{
     const d = doc.data();
     const wrap = document.createElement('div'); wrap.style.padding='8px'; wrap.style.border='1px solid #f1f5f7'; wrap.style.marginBottom='6px'; wrap.style.borderRadius='8px';
     wrap.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
       <div><strong>${d.name}</strong><div class="tiny muted">Stock: ${Math.round((d.stockKg||0)*100)/100} kg • Low: ${d.lowStockKg||0} kg</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="btn ghost" onclick='openMaterialEditorDialog("${doc.id}")'>Edit</button>
-        <button class="btn danger" onclick='deleteMaterial("${doc.id}")'>Delete</button>
-      </div>
+      <div style="display:flex;gap:6px"><button class="btn ghost" onclick='openMaterialEditorDialog("${doc.id}")'>Edit</button><button class="btn danger" onclick='deleteMaterial("${doc.id}")'>Delete</button></div>
     </div>`;
     el.appendChild(wrap);
   });
 }
-
 async function addMaterialFromModal(){
-  if(!currentCompanyId) return alert('Select company first in admin menu');
-  const name = document.getElementById('mg_newMaterial').value.trim();
-  if(!name) return alert('Enter material name');
-  const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc();
-  await matRef.set({
-    name,
-    stockKg: 0,
-    unitMappings: { rack: 50 },
-    lowStockKg: 100,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  if(!currentCompanyId) return alert('Select company first');
+  const name = document.getElementById('mg_newMaterial').value.trim(); if(!name) return alert('Enter material name');
+  const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(); await matRef.set({
+    name, stockKg:0, unitMappings:{ rack:50 }, lowStockKg:100, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  document.getElementById('mg_newMaterial').value='';
-  renderManageMaterials(); loadCompaniesToMenu();
+  document.getElementById('mg_newMaterial').value=''; renderManageMaterials(); await loadCompaniesToMenu();
 }
-
 async function deleteMaterial(materialId){
   if(!confirm('Delete material and its entries?')) return;
   const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId);
   const entriesSnap = await db.collection('companies').doc(currentCompanyId).collection('entries').where('materialId','==',materialId).get();
-  const batch = db.batch();
-  entriesSnap.forEach(e=> batch.delete(e.ref));
-  batch.delete(matRef);
-  await batch.commit();
-  alert('Deleted material and its related entries');
-  renderManageMaterials(); loadCompaniesToMenu();
+  const batch = db.batch(); entriesSnap.forEach(e=> batch.delete(e.ref)); batch.delete(matRef); await batch.commit();
+  alert('Deleted material and related entries'); renderManageMaterials(); await loadCompaniesToMenu();
 }
-
 async function openMaterialEditorDialog(materialId){
   const matDoc = await db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId).get();
+  if(!matDoc.exists) return alert('Material not found');
   const m = matDoc.data();
-  const mapsHtml = Object.keys(m.unitMappings||{}).map(k=>`<div style="display:flex;justify-content:space-between;padding:6px;border:1px solid #eef2f2;border-radius:6px;margin-bottom:6px"><div>${k} = ${m.unitMappings[k]} kg</div><button class="btn ghost" data-map="${k}">Remove</button></div>`).join('');
-  const html = `<div style="font-weight:700">Edit material — ${m.name}</div><hr>
+  const mapHtml = Object.keys(m.unitMappings||{}).map(k=>`<div style="display:flex;justify-content:space-between;padding:6px;border:1px solid #eef2f2;border-radius:6px;margin-bottom:6px"><div>${k} = ${m.unitMappings[k]} kg</div><button class="btn ghost" data-map="${k}">Remove</button></div>`).join('');
+  showModal(`<div style="font-weight:700">Edit material — ${m.name}</div><hr>
     <label>Name</label><input id="me_name" value="${m.name}" />
     <label>Low stock threshold (kg)</label><input id="me_low" type="number" value="${m.lowStockKg||0}" />
-    <label>Unit mappings</label><div id="me_maps">${mapsHtml}</div>
-    <div style="display:flex;gap:8px;margin-top:8px"><input id="me_map_name" placeholder="unit name (e.g., rack)" /><input id="me_map_kg" placeholder="kg per unit" type="number" /><button class="btn" id="me_add_map">Add</button></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="me_cancel">Cancel</button><button class="btn" id="me_save">Save</button></div>`;
-  showModal(html);
-  document.querySelectorAll('[data-map]').forEach(btn=>{
-    btn.addEventListener('click', (ev)=>{
-      const key = ev.target.dataset.map;
-      delete m.unitMappings[key];
-      document.getElementById('modalRoot').innerHTML = '';
-      openMaterialEditorDialog(materialId);
-    });
-  });
-  document.getElementById('me_add_map').onclick = ()=>{
-    const n = document.getElementById('me_map_name').value.trim();
-    const kg = Number(document.getElementById('me_map_kg').value);
-    if(!n || !kg) return alert('Invalid mapping');
-    m.unitMappings = m.unitMappings || {}; m.unitMappings[n] = kg;
-    document.getElementById('me_map_name').value=''; document.getElementById('me_map_kg').value='';
-    document.getElementById('modalRoot').innerHTML = '';
-    openMaterialEditorDialog(materialId);
-  };
+    <label>Unit mappings</label><div id="me_maps">${mapHtml}</div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input id="me_map_name" placeholder="unit e.g. rack" /><input id="me_map_kg" placeholder="kg per unit" type="number" /><button class="btn" id="me_add_map">Add</button></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="me_cancel">Cancel</button><button class="btn" id="me_save">Save</button></div>`);
+  document.querySelectorAll('[data-map]').forEach(b=>b.addEventListener('click',(ev)=>{
+    const key = ev.target.dataset.map; delete m.unitMappings[key]; document.getElementById('modalRoot').innerHTML=''; openMaterialEditorDialog(materialId);
+  }));
+  document.getElementById('me_add_map').onclick = ()=>{ const n = document.getElementById('me_map_name').value.trim(); const kg = Number(document.getElementById('me_map_kg').value); if(!n||!kg) return alert('Invalid'); m.unitMappings = m.unitMappings||{}; m.unitMappings[n]=kg; document.getElementById('modalRoot').innerHTML=''; openMaterialEditorDialog(materialId); };
   document.getElementById('me_cancel').onclick = closeModal;
   document.getElementById('me_save').onclick = async ()=>{
-    const newName = document.getElementById('me_name').value.trim();
-    const low = Number(document.getElementById('me_low').value) || 0;
-    await db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId).update({
-      name: newName || m.name,
-      unitMappings: m.unitMappings || {},
-      lowStockKg: low,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    closeModal();
-    renderManageMaterials(); loadCompaniesToMenu();
+    const newName = document.getElementById('me_name').value.trim(); const low = Number(document.getElementById('me_low').value) || 0;
+    await db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId).update({ name: newName || m.name, unitMappings: m.unitMappings||{}, lowStockKg: low, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    closeModal(); renderManageMaterials(); await loadCompaniesToMenu();
   };
 }
 
-/* History */
-function openHistoryModal(){
-  if(!currentCompanyId) return alert('Select company first (admin menu)');
-  showModal(`<div style="font-weight:700">History — ${document.getElementById('mainCompanyName').textContent}</div><hr><div id="historyContainer" style="max-height:60vh;overflow:auto"></div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="h_close">Close</button></div>`);
-  document.getElementById('h_close').onclick = closeModal;
-  const container = document.getElementById('historyContainer');
-  const rows = lastEntriesSnapshot.map(e=>{
-    const m = lastMaterials.find(mm => mm.id === e.materialId);
-    const matName = m ? m.name : e.materialId;
-    const amount = e.pricePerKg ? (e.pricePerKg * (e.quantityKg||0)) : '';
-    return `<tr>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${fmtDate(e.createdAt)}</td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${e.type}</td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${matName}</td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${e.quantityKg} kg <div class="tiny muted">${e.qtyRaw} ${e.unit}</div></td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${amount ? toINR(amount) : '-'}</td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6">${e.note || ''}</td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6;white-space:nowrap">
-         <button class="btn ghost" onclick='openEditEntryDialog("${e.id}")'>Edit</button>
-         <button class="btn danger" onclick='deleteEntry("${e.id}")'>Delete</button>
-      </td>
-    </tr>`;
-  }).join('');
-  container.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Date</th><th>Type</th><th>Material</th><th>Qty</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan=7 class="tiny muted">No entries</td></tr>'}</tbody></table>`;
-}
-
-/* Edit entry dialog */
+/* ---------- Edit entry dialog ---------- */
 async function openEditEntryDialog(entryId){
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   const eDoc = await entryRef.get();
   if(!eDoc.exists) return alert('Entry not found');
   const e = eDoc.data();
-  const matOpts = lastMaterials.map(m=>`<option value="${m.id}" ${m.id===e.materialId?'selected':''}>${m.name}</option>`).join('');
-  const matObj = lastMaterials.find(m => m.id === e.materialId) || {};
+  const matOptions = lastMaterials.map(m => `<option value="${m.id}" ${m.id===e.materialId?'selected':''}>${m.name}</option>`).join('');
+  const matObj = lastMaterials.find(m=>m.id===e.materialId) || {};
   const mapOptions = Object.keys(matObj.unitMappings||{}).map(u=>`<option value="${u}">${u} (= ${matObj.unitMappings[u]} kg)</option>`).join('');
-  const html = `<div style="font-weight:700">Edit entry</div><hr>
+  showModal(`<div style="font-weight:700">Edit entry</div><hr>
     <label>Type</label><select id="ee_type"><option value="inflow">Inflow</option><option value="outflow">Outflow</option></select>
-    <label>Material</label><select id="ee_mat">${matOpts}</select>
+    <label>Material</label><select id="ee_mat">${matOptions}</select>
     <label>Quantity</label><div style="display:flex;gap:8px"><input id="ee_qty" type="number" value="${e.qtyRaw || e.quantityKg || 0}" /><select id="ee_unit"><option value="kg">kg</option>${mapOptions}</select></div>
-    <label>Price per kg</label><input id="ee_price" type="number" step="0.01" value="${e.pricePerKg || ''}" />
-    <label>Note</label><input id="ee_note" value="${e.note || ''}" />
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="ee_cancel">Cancel</button><button class="btn" id="ee_save">Save</button></div>`;
-  showModal(html);
-  document.getElementById('ee_type').value = e.type;
-  document.getElementById('ee_cancel').onclick = closeModal;
+    <label>Price per kg</label><input id="ee_price" type="number" step="0.01" value="${e.pricePerKg||''}" />
+    <label>Note</label><input id="ee_note" value="${e.note||''}" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="ee_cancel">Cancel</button><button class="btn" id="ee_save">Save</button></div>`);
+  document.getElementById('ee_type').value = e.type; document.getElementById('ee_cancel').onclick = closeModal;
   document.getElementById('ee_save').onclick = async ()=>{
-    const newType = document.getElementById('ee_type').value;
-    const newMatId = document.getElementById('ee_mat').value;
-    const newQtyRaw = Number(document.getElementById('ee_qty').value);
-    const newUnit = document.getElementById('ee_unit').value;
-    const newPrice = document.getElementById('ee_price').value ? Number(document.getElementById('ee_price').value) : null;
-    const newNote = document.getElementById('ee_note').value || '';
+    // carefully update: reverse old entry effect on old material and apply new effect to new material in a transaction
+    const newType = document.getElementById('ee_type').value; const newMatId = document.getElementById('ee_mat').value;
+    const newQtyRaw = Number(document.getElementById('ee_qty').value); const newUnit = document.getElementById('ee_unit').value;
+    const newPrice = document.getElementById('ee_price').value ? Number(document.getElementById('ee_price').value) : null; const newNote = document.getElementById('ee_note').value || '';
     if(newQtyRaw <= 0) return alert('Invalid qty');
-    let matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(newMatId);
     try{
-      await db.runTransaction(async (tx)=>{
+      await db.runTransaction(async tx=>{
         const entrySnap = await tx.get(entryRef);
         if(!entrySnap.exists) throw new Error('Entry vanished');
         const old = entrySnap.data();
         const oldMatRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(old.materialId);
-        const oldMatSnap = await tx.get(oldMatRef);
-        const newMatSnap = await tx.get(matRef);
-        if(!newMatSnap.exists || !oldMatSnap.exists) throw new Error('Material missing');
-
+        const newMatRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(newMatId);
+        const [oldMatSnap, newMatSnap] = await Promise.all([tx.get(oldMatRef), tx.get(newMatRef)]);
+        if(!oldMatSnap.exists || !newMatSnap.exists) throw new Error('Material missing');
         const computeKg = (matSnap, qtyRaw, unit) => {
           if(unit === 'kg') return qtyRaw;
-          const map = (matSnap.data().unitMappings || {});
-          if(!map[unit]) throw new Error('Unit mapping missing for new unit');
+          const map = matSnap.data().unitMappings || {};
+          if(!map[unit]) throw new Error('Unit mapping missing');
           return qtyRaw * map[unit];
         };
         const oldQtyKg = old.quantityKg || computeKg(oldMatSnap, old.qtyRaw, old.unit);
         const newQtyKg = computeKg(newMatSnap, newQtyRaw, newUnit);
-
+        // reverse old effect
         const oldMatCurrent = oldMatSnap.data().stockKg || 0;
         const oldMatNewStock = (old.type === 'inflow') ? (oldMatCurrent - oldQtyKg) : (oldMatCurrent + oldQtyKg);
-        if(oldMatNewStock < 0) throw new Error('Invalid operation: would make old material negative');
-
+        if(oldMatNewStock < 0) throw new Error('Cannot reverse old entry (negative stock)');
+        // apply new effect
         const newMatCurrent = newMatSnap.data().stockKg || 0;
         const newMatNewStock = (newType === 'inflow') ? (newMatCurrent + newQtyKg) : (newMatCurrent - newQtyKg);
-        if(newMatNewStock < 0) throw new Error('Not enough stock for new material/outflow');
-
+        if(newMatNewStock < 0) throw new Error('Not enough stock for this outflow on new material');
         tx.update(oldMatRef, { stockKg: oldMatNewStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-        tx.update(matRef, { stockKg: newMatNewStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        tx.update(newMatRef, { stockKg: newMatNewStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
         tx.update(entryRef, {
-          type: newType,
-          materialId: newMatId,
-          qtyRaw: newQtyRaw,
-          unit: newUnit,
-          quantityKg: newQtyKg,
-          pricePerKg: newPrice || null,
-          note: newNote,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          type: newType, materialId: newMatId, qtyRaw: newQtyRaw, unit: newUnit, quantityKg: newQtyKg,
+          pricePerKg: newPrice||null, note: newNote, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
       alert('Entry updated');
       closeModal();
-    }catch(err){
-      alert('Update failed: '+err.message);
-    }
+    } catch(err){ alert('Update failed: '+err.message); console.error(err); }
   };
 }
 
-/* Delete entry */
+/* ---------- Delete entry ---------- */
 async function deleteEntry(entryId){
-  if(!confirm('Delete this entry? This will adjust the material stock accordingly.')) return;
+  if(!confirm('Delete this entry? This will adjust stock.')) return;
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   try{
     await db.runTransaction(async tx=>{
-      const esnap = await tx.get(entryRef);
-      if(!esnap.exists) throw new Error('Entry not found');
+      const esnap = await tx.get(entryRef); if(!esnap.exists) throw new Error('Entry missing');
       const e = esnap.data();
       const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(e.materialId);
-      const matSnap = await tx.get(matRef);
-      if(!matSnap.exists) throw new Error('Material not found');
+      const matSnap = await tx.get(matRef); if(!matSnap.exists) throw new Error('Material missing');
       const mat = matSnap.data();
-      const qtyKg = e.quantityKg || (e.unit==='kg' ? e.qtyRaw : (mat.unitMappings && mat.unitMappings[e.unit] ? e.qtyRaw * mat.unitMappings[e.unit] : e.qtyRaw));
-      const current = mat.stockKg || 0;
-      const newStock = (e.type === 'inflow') ? (current - qtyKg) : (current + qtyKg);
-      if(newStock < 0) throw new Error('Operation would lead to negative stock');
+      const qtyKg = e.quantityKg || (e.unit === 'kg' ? e.qtyRaw : ((mat.unitMappings && mat.unitMappings[e.unit]) ? e.qtyRaw * mat.unitMappings[e.unit] : e.qtyRaw));
+      const newStock = (e.type === 'inflow') ? ((mat.stockKg || 0) - qtyKg) : ((mat.stockKg || 0) + qtyKg);
+      if(newStock < 0) throw new Error('Operation would result in negative stock');
       tx.update(matRef, { stockKg: newStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       tx.delete(entryRef);
       tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
-    alert('Entry deleted and stock adjusted');
-  }catch(err){ alert('Delete failed: '+err.message); }
+    alert('Deleted');
+  } catch(err){ alert('Delete failed: '+err.message); console.error(err); }
 }
 
-/* Export / Import / Seed */
+/* ---------- Export / Import / Seed ---------- */
 document.getElementById('menuExport').addEventListener('click', async ()=>{
   if(!db) return alert('No DB');
   const full = { companies: {} };
@@ -767,26 +645,21 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
     const c = cdoc.data();
     full.companies[cdoc.id] = { name: c.name, materials: {}, entries: {} };
     const mats = await cdoc.ref.collection('materials').get();
-    mats.forEach(m=> full.companies[cdoc.id].materials[m.id] = m.data());
+    mats.forEach(m => full.companies[cdoc.id].materials[m.id] = m.data());
     const ents = await cdoc.ref.collection('entries').get();
-    ents.forEach(e=> full.companies[cdoc.id].entries[e.id] = e.data());
+    ents.forEach(e => full.companies[cdoc.id].entries[e.id] = e.data());
   }
   const blob = new Blob([JSON.stringify(full,null,2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'firestore-export.json'; document.body.appendChild(a); a.click(); a.remove();
-  closeDrawer();
-  alert('Export started (download).');
+  closeDrawer(); alert('Export downloaded');
 });
-document.getElementById('menuImport').addEventListener('click', ()=>{
-  if(!auth.currentUser) return alert('Sign in as admin to import');
-  document.getElementById('fileInput').click();
-});
+document.getElementById('menuImport').addEventListener('click', ()=> { document.getElementById('fileInput').click(); });
 document.getElementById('fileInput').addEventListener('change', async (ev)=>{
-  const f = ev.target.files[0];
-  if(!f) return;
+  const f = ev.target.files[0]; if(!f) return;
   const txt = await f.text();
   try{
     const parsed = JSON.parse(txt);
-    if(!confirm('Import will write to Firestore and may overwrite existing data for same doc IDs. Continue?')) return;
+    if(!confirm('Import will write to Firestore. Continue?')) return;
     for(const cid of Object.keys(parsed.companies || {})){
       const cObj = parsed.companies[cid];
       await db.collection('companies').doc(cid).set({ name: cObj.name || 'Imported', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -797,35 +670,25 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
         await db.collection('companies').doc(cid).collection('entries').doc(eid).set(cObj.entries[eid]);
       }
     }
-    alert('Import complete');
-    loadCompaniesToMenu();
-    closeModal();
-  }catch(err){ alert('Import failed: '+err.message); }
+    alert('Import complete'); loadCompaniesToMenu(); closeModal();
+  } catch(err){ alert('Import failed: '+err.message); }
 });
-
 document.getElementById('menuSeed').addEventListener('click', async ()=>{
-  if(!auth.currentUser) return alert('Sign in as admin to seed data');
-  if(!confirm('Seed example companies, materials and sample entries?')) return;
+  if(!confirm('Seed sample data?')) return;
   try{
-    const cmpA = db.collection('companies').doc('aditya-fertilizers');
-    await cmpA.set({ name: 'Aditya Fertilizers', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-    const cmpB = db.collection('companies').doc('adi-manures');
-    await cmpB.set({ name: 'Adi Manures', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
+    const cmpA = db.collection('companies').doc('aditya-fertilizers'); await cmpA.set({ name: 'Aditya Fertilizers', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const cmpB = db.collection('companies').doc('adi-manures'); await cmpB.set({ name: 'Adi Manures', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpA.collection('materials').doc('urea').set({ name:'Urea', stockKg:12000, unitMappings:{ rack:50 }, lowStockKg:500, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpA.collection('materials').doc('dap').set({ name:'DAP', stockKg:6000, unitMappings:{ rack:100 }, lowStockKg:300, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpB.collection('materials').doc('cow-manure').set({ name:'Cow Manure', stockKg:2000, unitMappings:{ sack:40 }, lowStockKg:150, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
     await cmpA.collection('entries').add({ type:'inflow', materialId:'urea', qtyRaw:240, unit:'rack', quantityKg:12000, pricePerKg:5.5, note:'Initial stock', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpA.collection('entries').add({ type:'outflow', materialId:'dap', qtyRaw:20, unit:'rack', quantityKg:2000, pricePerKg:15, note:'Sale to dealer', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpB.collection('entries').add({ type:'inflow', materialId:'cow-manure', qtyRaw:50, unit:'sack', quantityKg:2000, pricePerKg:1.2, note:'Initial', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-    alert('Seed data written');
-    loadCompaniesToMenu();
-  }catch(e){ alert('Seed failed: '+e.message); }
+    alert('Seed done'); await loadCompaniesToMenu();
+  } catch(err){ alert('Seed failed: '+err.message); }
 });
 
-/* Drawer & buttons */
+/* ---------- Drawer & UI wiring ---------- */
 const drawer = document.getElementById('drawer');
 document.getElementById('hamb').addEventListener('click', ()=> {
   if(window.innerWidth <= 900){ drawer.classList.toggle('open'); } else { drawer.classList.toggle('hide'); }
@@ -836,50 +699,80 @@ document.getElementById('menuManage').addEventListener('click', ()=> { closeDraw
 function closeDrawer(){ if(window.innerWidth<=900) drawer.classList.remove('open'); else drawer.classList.add('hide'); }
 
 document.getElementById('btnInflow').addEventListener('click', ()=> {
-  if(!currentCompanyId) return alert('Select a company in the admin menu first.');
+  if(!currentCompanyId) return alert('Select a company in the admin menu');
+  // pick material from lastMaterials
   const opts = lastMaterials.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
-  const html = `<div style="font-weight:700">Add Inflow</div><hr>
+  showModal(`<div style="font-weight:700">Add Inflow</div><hr>
     <label>Material</label><select id="g_mat">${opts}</select>
     <label>Quantity</label><div style="display:flex;gap:8px"><input id="g_qty" type="number" /><select id="g_unit"><option value="kg">kg</option></select></div>
-    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" />
-    <label>Note</label><input id="g_note" />
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn" id="g_save">Confirm & Save</button></div>`;
-  showModal(html);
+    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" /><label>Note</label><input id="g_note" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn" id="g_save">Confirm & Save</button></div>`);
   const matSel = document.getElementById('g_mat');
-  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings || {})){ const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o); } }
+  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings||{})) uSel.appendChild(Object.assign(document.createElement('option'),{value:k,textContent:`${k} (= ${m.unitMappings[k]} kg)` })); }
   matSel.onchange = populateUnits; populateUnits();
   document.getElementById('g_cancel').onclick = closeModal;
-  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value || ''; await addEntry(mid,'inflow',qty,unit,price,note); closeModal(); };
+  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value||''; await addEntry(mid,'inflow',qty,unit,price,note); closeModal(); };
 });
 
 document.getElementById('btnOutflow').addEventListener('click', ()=> {
-  if(!currentCompanyId) return alert('Select a company in the admin menu first.');
+  if(!currentCompanyId) return alert('Select a company in the admin menu');
   const opts = lastMaterials.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
-  const html = `<div style="font-weight:700">Add Outflow</div><hr>
+  showModal(`<div style="font-weight:700">Add Outflow</div><hr>
     <label>Material</label><select id="g_mat">${opts}</select>
     <label>Quantity</label><div style="display:flex;gap:8px"><input id="g_qty" type="number" /><select id="g_unit"><option value="kg">kg</option></select></div>
-    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" />
-    <label>Note</label><input id="g_note" />
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn warn" id="g_save">Confirm & Save</button></div>`;
-  showModal(html);
+    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" /><label>Note</label><input id="g_note" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn warn" id="g_save">Confirm & Save</button></div>`);
   const matSel = document.getElementById('g_mat');
-  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings || {})){ const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o); } }
+  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings||{})) uSel.appendChild(Object.assign(document.createElement('option'),{value:k,textContent:`${k} (= ${m.unitMappings[k]} kg)` })); }
   matSel.onchange = populateUnits; populateUnits();
   document.getElementById('g_cancel').onclick = closeModal;
-  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value || ''; await addEntry(mid,'outflow',qty,unit,price,note); closeModal(); };
+  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value||''; await addEntry(mid,'outflow',qty,unit,price,note); closeModal(); };
 });
 
-/* helpers */
-function renderAll(){ loadCompaniesToMenu(); }
-if(db){ renderAll(); document.getElementById('statusLabel').textContent = 'Ready'; } else { document.getElementById('statusLabel').textContent = 'No Firebase config'; }
+/* ---------- Init ---------- */
+(async function init(){
+  if(!db){ document.getElementById('statusLabel').textContent = 'No Firebase'; return; }
+  await ensureSignedIn();
+  await loadCompaniesToMenu();
+  document.getElementById('statusLabel').textContent = 'Ready';
+})();
 
-/* expose some functions */
+/* make functions accessible for inline onclick handlers used in HTML */
 window.openQuickInflow = openQuickInflow;
 window.openQuickOutflow = openQuickOutflow;
-window.openMaterialEditor = openMaterialEditorDialog;
-window.openManage = openManageModal;
+window.openMaterialEditorDialog = openMaterialEditorDialog;
 window.openHistoryModal = openHistoryModal;
+window.openManageModal = openManageModal;
 window.deleteEntry = deleteEntry;
+window.openEditEntryDialog = openEditEntryDialog;
+
+/* ---------- Security recommendation (apply in Firebase console) ----------
+  After you've created the admin user and confirmed their uid, restrict writes:
+  Replace ADMIN_UID with the admin's uid from Firebase Auth.
+
+  Firestore rules example (restrict writes to single admin UID):
+
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /companies/{companyId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == 'ADMIN_UID';
+        match /materials/{materialId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.uid == 'ADMIN_UID';
+        }
+        match /entries/{entryId} {
+          allow read: if true;
+          allow write: if request.auth != null && request.auth.uid == 'ADMIN_UID';
+        }
+      }
+    }
+  }
+
+  Get ADMIN_UID: in Firebase console -> Authentication -> Users -> click the admin user -> UID.
+  --------------------------------------------------------------------- */
+
 </script>
 </body>
 </html>
