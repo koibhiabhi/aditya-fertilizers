@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Aditya Fertilizers & Adi Manures — Supply App</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Chart.js for simple bars -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ========= Minimal, modern & responsive styling ========= */
+    :root{
+      --bg:#f3f6f8; --card:#ffffff; --muted:#6b7280; --accent:#0f766e;
+      --accent-2:#047857; --danger:#b91c1c; --glass:rgba(255,255,255,0.6);
+      --sidebar-width:300px;
+      font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#07223b;min-height:100vh}
+    header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:linear-gradient(90deg,#ffffff, #f8fafc);border-bottom:1px solid rgba(2,6,23,0.04);position:sticky;top:0;z-index:30}
+    .hamburger{width:40px;height:40px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 18px rgba(12,15,20,0.06)}
+    .title{font-weight:700;font-size:16px}
+    .subtitle{font-size:12px;color:var(--muted)}
+    main{display:flex;gap:18px;padding:18px;align-items:flex-start}
+    /* sidebar drawer */
+    .drawer{width:var(--sidebar-width);min-width:var(--sidebar-width);max-height:calc(100vh - 90px);overflow:auto;padding:14px;border-radius:12px;background:var(--card);box-shadow:0 8px 28px rgba(12,15,20,0.06)}
+    .drawer.hide{display:none}
+    .content{flex:1}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(12,15,20,0.04);margin-bottom:16px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    select,input,textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef0;background:white}
+    .row{display:flex;gap:8px}
+    .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;background:var(--accent);color:white;font-weight:600}
+    .btn.ghost{background:transparent;border:1px solid #e6eef0;color:var(--accent)}
+    .btn.warn{background:var(--accent-2)}
+    .btn.danger{background:var(--danger)}
+    .muted{color:var(--muted);font-size:13px}
+    .materials{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .mat-card{padding:12px;border-radius:10px;border:1px solid #f1f5f7;background:linear-gradient(180deg,#fff,#fbfdfb)}
+    .mat-name{font-weight:700;font-size:15px}
+    .mat-qty{font-size:20px;margin-top:6px}
+    .low{color:var(--danger);font-weight:700}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .footer{font-size:12px;color:var(--muted);margin-top:8px}
+    /* drawer items */
+    .menu-item{padding:10px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+    .menu-item:hover{background:#f6fbfb}
+    .small{font-size:13px;color:var(--muted)}
+    /* responsive: mobile stacks */
+    @media (max-width:900px){
+      main{flex-direction:column;padding:12px}
+      .drawer{position:fixed;left:0;top:68px;height:calc(100vh - 68px);z-index:50;transform:translateX(-120%);transition:transform .22s ease}
+      .drawer.open{transform:translateX(0)}
+      .drawer.hide{display:block}
+    }
+    /* small helpers */
+    .right{margin-left:auto}
+    .center{text-align:center}
+    .tiny{font-size:12px;color:var(--muted)}
+    .input-inline{display:flex;gap:8px}
+    .chip{background:#eef6f5;padding:4px 8px;border-radius:999px;color:var(--accent-2);font-weight:700}
+    .chart-wrap{height:220px}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.35);display:flex;align-items:center;justify-content:center;z-index:60}
+    .modal{width:92%;max-width:720px;background:var(--card);padding:16px;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.18)}
+  </style>
+</head>
+<body>
+  <header>
+    <div id="hamb" class="hamburger" title="Menu" aria-label="Open menu">
+      <svg width="18" height="12" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect y="0" width="20" height="2" rx="1" fill="#0f766e"/><rect y="6" width="20" height="2" rx="1" fill="#0f766e"/><rect y="12" width="20" height="2" rx="1" fill="#0f766e"/></svg>
+    </div>
+    <div>
+      <div class="title">Aditya Fertilizers & Adi Manures</div>
+      <div class="subtitle">Simple supply management — single admin</div>
+    </div>
+    <div class="right tiny" style="margin-left:12px">Auto-save: <span id="autosaveStatus">Local</span></div>
+  </header>
+
+  <main>
+    <!-- Drawer / Sidebar (hamburger) -->
+    <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700">Admin Menu</div>
+        <div class="chip" style="margin-left:auto">Admin</div>
+      </div>
+
+      <div class="menu-item" id="menuDashboard"><div>Dashboard</div><div class="small">Overview</div></div>
+      <div class="menu-item" id="menuHistory"><div>History</div><div class="small">View & edit entries</div></div>
+      <div class="menu-item" id="menuManage"><div>Manage Companies & Materials</div><div class="small">Add / edit</div></div>
+
+      <hr>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px">Advanced</div>
+      <div class="menu-item" id="menuExport"><div>Export data</div><div class="small">Backup JSON</div></div>
+      <div class="menu-item" id="menuImport"><div>Import data</div><div class="small">Load JSON</div></div>
+
+      <div class="footer" style="margin-top:14px">
+        <div class="small">Note: All actions auto-save locally and attempt a secure server save if your system admin has enabled the server integration (not shown here).</div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <section class="content">
+      <!-- Top controls -->
+      <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="min-width:220px">
+          <label>Company</label>
+          <select id="companySelect" aria-label="Choose company"></select>
+        </div>
+
+        <div style="flex:1;min-width:220px">
+          <label>Quick actions</label>
+          <div class="controls">
+            <button class="btn" id="btnInflow">Add Inflow</button>
+            <button class="btn warn" id="btnOutflow">Add Outflow</button>
+            <button class="btn ghost" id="btnManage">Manage</button>
+            <button class="btn ghost" id="btnHistory">History</button>
+          </div>
+        </div>
+
+        <div style="min-width:200px;text-align:right">
+          <div class="tiny">Last save</div>
+          <div id="lastSaved" style="font-weight:700">Not saved</div>
+        </div>
+      </div>
+
+      <!-- Dashboard cards -->
+      <div id="dashboardArea"></div>
+
+      <!-- Placeholders for modal content (history / manage) -->
+      <div id="modalRoot"></div>
+    </section>
+  </main>
+
+  <!-- Hidden file input for import -->
+  <input id="fileInput" type="file" accept=".json" style="display:none" />
+
+<script>
+/*
+  Supply App — Clean UI version
+  - Single-file client-side app
+  - No GitHub fields shown to user
+  - Auto-save: localStorage + POST to /api/save (if backend present)
+  - Instructions: create a server endpoint /api/save to persist commits to GitHub (or any server-side storage).
+*/
+
+/* ===========================
+   Utilities & Data model
+   =========================== */
+function uid(prefix='id'){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
+function now(){ return Date.now(); }
+function fmtDate(ts){ return new Date(ts).toLocaleString('en-IN'); }
+function toINR(x){ if(x===undefined||x===null||x==='') return '-'; return '₹'+Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+
+let DATA = null; // main in-memory data object
+const LS_KEY = 'afam_data_v2';
+const SERVER_SAVE_URL = '/api/save'; // backend endpoint (optional). Should accept POST JSON and return {ok:true}
+let lastSavedTs = null;
+
+/* Default sample data (prefill) */
+const SAMPLE = {
+  companies: [
+    {
+      id: uid('cmp'), name: 'Aditya Fertilizers',
+      materials: [
+        { id: uid('mat'), name: 'Urea', unitMappings: { rack:50 }, lowStockKg: 500, createdAt: now() },
+        { id: uid('mat'), name: 'DAP', unitMappings: { rack:100 }, lowStockKg: 300, createdAt: now() }
+      ],
+      entries: [
+        { id: uid('entry'), type:'inflow', materialId:null, quantityKg:12000, unit:'kg', qtyRaw:12000, pricePerKg:5.5, timestamp: now()-86400000*5, note:'Initial purchase' },
+        // More sample entries will be linked to existing materials after init
+      ]
+    },
+    {
+      id: uid('cmp'), name: 'Adi Manures',
+      materials: [
+        { id: uid('mat'), name: 'Cow Manure', unitMappings: { sack:40 }, lowStockKg:200, createdAt: now() }
+      ],
+      entries: []
+    }
+  ],
+  meta: { createdAt: now(), updatedAt: now() }
+};
+
+/* ===========================
+   Persistence helpers
+   =========================== */
+
+/* Try load from localStorage; if none, use sample prefills */
+function loadLocal(){
+  const s = localStorage.getItem(LS_KEY);
+  if(s){
+    try{ DATA = JSON.parse(s); return; } catch(e){}
+  }
+  // if no local data, use SAMPLE and create some linked entries for realism
+  DATA = JSON.parse(JSON.stringify(SAMPLE));
+  // link sample inflow entries to first company's first material
+  if(DATA.companies[0].materials.length && DATA.companies[0].entries.length){
+    DATA.companies[0].entries[0].materialId = DATA.companies[0].materials[0].id;
+  }
+  saveLocal('Initial sample loaded');
+}
+
+/* Save to localStorage */
+function saveLocal(note){
+  DATA.meta = DATA.meta || {};
+  DATA.meta.updatedAt = now();
+  localStorage.setItem(LS_KEY, JSON.stringify(DATA));
+  lastSavedTs = now();
+  document.getElementById('lastSaved').textContent = 'Local: '+fmtDate(lastSavedTs);
+  // Attempt server save asynchronously but don't block UI
+  attemptServerSave(note);
+}
+
+/* Export JSON for manual backup */
+function exportJson(){
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* Import: read file content and replace DATA */
+function importJsonFile(file){
+  const r = new FileReader();
+  r.onload = (e) => {
+    try{
+      const parsed = JSON.parse(e.target.result);
+      DATA = parsed;
+      saveLocal('Imported JSON');
+      renderAll();
+      alert('Data imported and saved locally.');
+    }catch(err){ alert('Invalid JSON file: '+err.message); }
+  };
+  r.readAsText(file);
+}
+
+/* ===========================
+   Server save (optional)
+   - This app calls POST /api/save with the full JSON.
+   - The server should handle authentication and commit to GitHub (or other store).
+   - The UI does not show server settings; that's handled separately on server side.
+   - Server expected response: { ok: true, message?: '...' }
+   =========================== */
+async function attemptServerSave(note='auto-save'){
+  // Try save to server if endpoint exists. If server is unreachable, silently ignore but update UI status.
+  // IMPORTANT: Implement server carefully to avoid exposing PATs or tokens.
+  try{
+    const res = await fetch(SERVER_SAVE_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ data: DATA, note })
+    });
+    if(!res.ok){
+      // server not available or returned error
+      document.getElementById('autosaveStatus').textContent = 'Local';
+      return;
+    }
+    const j = await res.json();
+    if(j && j.ok){
+      document.getElementById('autosaveStatus').textContent = 'Saved';
+      lastSavedTs = now();
+      document.getElementById('lastSaved').textContent = 'Saved: '+fmtDate(lastSavedTs);
+    } else {
+      document.getElementById('autosaveStatus').textContent = 'Local';
+    }
+  }catch(e){
+    // no server — that's fine, local save works
+    document.getElementById('autosaveStatus').textContent = 'Local';
+  }
+}
+
+/* ===========================
+   Business logic helpers
+   =========================== */
+function getCompanyById(id){ return DATA.companies.find(c=>c.id===id); }
+function computeStockKg(company, materialId){
+  const entries = company.entries || [];
+  let total = 0;
+  for(const e of entries){
+    if(e.materialId !== materialId) continue;
+    if(e.type === 'inflow') total += (e.quantityKg || 0);
+    else total -= (e.quantityKg || 0);
+  }
+  return Math.max(0, Math.round(total*100)/100);
+}
+
+/* Convert qtyRaw + unit to kg using material mappings */
+function convertToKg(material, qtyRaw, unit){
+  if(unit === 'kg') return qtyRaw;
+  if(material && material.unitMappings && material.unitMappings[unit]) return qtyRaw * material.unitMappings[unit];
+  // fallback: assume kg
+  return qtyRaw;
+}
+
+/* ===========================
+   Rendering & UI handlers
+   =========================== */
+
+function renderCompanyOptions(){
+  const sel = document.getElementById('companySelect');
+  sel.innerHTML = '';
+  for(const c of DATA.companies){
+    const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.name;
+    sel.appendChild(opt);
+  }
+}
+
+/* Render the dashboard main area: stock cards and low stock alerts */
+let stockChart = null;
+function renderDashboard(){
+  const container = document.getElementById('dashboardArea');
+  container.innerHTML = '';
+  const company = getCompanyById(document.getElementById('companySelect').value);
+  if(!company) return;
+
+  // Header card: summary numbers
+  const summaryCard = document.createElement('div'); summaryCard.className='card';
+  summaryCard.innerHTML = `<div style="display:flex;gap:12px;align-items:center">
+    <div style="font-weight:700">${company.name}</div>
+    <div class="tiny muted">Inventory overview</div>
+    </div>`;
+
+  // materials grid
+  const matsWrap = document.createElement('div'); matsWrap.style.marginTop='12px';
+  const grid = document.createElement('div'); grid.className='materials';
+  for(const m of company.materials){
+    const stk = computeStockKg(company, m.id);
+    const div = document.createElement('div'); div.className='mat-card';
+    div.innerHTML = `<div class="mat-name">${m.name}</div>
+                     <div class="mat-qty ${stk <= (m.lowStockKg || 0) ? 'low' : ''}">${stk} kg</div>
+                     <div class="tiny muted" style="margin-top:6px">Low threshold: ${(m.lowStockKg||0)} kg</div>
+                     <div style="margin-top:10px;display:flex;gap:8px">
+                       <button class="btn small" onclick="openQuickInflow('${company.id}','${m.id}')">Add Inflow</button>
+                       <button class="btn warn small" onclick="openQuickOutflow('${company.id}','${m.id}')">Add Outflow</button>
+                       <button class="btn ghost small" onclick="openManageMaterial('${company.id}','${m.id}')">Edit</button>
+                     </div>`;
+    grid.appendChild(div);
+  }
+  matsWrap.appendChild(grid);
+  summaryCard.appendChild(matsWrap);
+
+  // Chart card
+  const chartCard = document.createElement('div'); chartCard.className='card'; chartCard.style.marginTop='12px';
+  chartCard.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700">Stock levels</div><div class="tiny muted">kg per material</div>
+  </div><div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>`;
+  container.appendChild(summaryCard);
+  container.appendChild(chartCard);
+
+  // Low stock alerts card (if any)
+  const lows = company.materials.filter(m => computeStockKg(company, m.id) <= (m.lowStockKg||0));
+  if(lows.length){
+    const alertCard = document.createElement('div'); alertCard.className='card';
+    alertCard.innerHTML = `<div style="font-weight:700;color:var(--danger)">Low stock alert</div>`;
+    for(const m of lows){
+      const s = computeStockKg(company, m.id);
+      const row = document.createElement('div'); row.style.marginTop='8px';
+      row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>${m.name}</strong><div class="tiny muted">${s} kg left (threshold ${m.lowStockKg||0} kg)</div></div>
+        <div><button class="btn" onclick="openQuickInflow('${company.id}','${m.id}')">Restock</button></div>
+      </div>`;
+      alertCard.appendChild(row);
+    }
+    container.appendChild(alertCard);
+  }
+
+  // draw chart
+  const labels = company.materials.map(m=>m.name);
+  const data = company.materials.map(m=>computeStockKg(company, m.id));
+  const ctx = document.getElementById('stockCanvas').getContext('2d');
+  if(stockChart) stockChart.destroy();
+  stockChart = new Chart(ctx, {
+    type:'bar', data:{ labels, datasets:[{ label:'kg', data }]}, options:{
+      responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } }
+    }
+  });
+}
+
+/* Re-render everything */
+function renderAll(){
+  renderCompanyOptions();
+  // ensure a selected company remains
+  const sel = document.getElementById('companySelect');
+  if(!sel.value && DATA.companies.length) sel.value = DATA.companies[0].id;
+  renderDashboard();
+}
+
+/* ===========================
+   Modals for quick inflow/outflow & management
+   =========================== */
+
+/* Generic function to create modal */
+function openModal(htmlContent, onClose){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">${htmlContent}</div>
+  </div>`;
+  document.getElementById('modalBackdrop').addEventListener('click', (e)=>{
+    if(e.target.id === 'modalBackdrop') { root.innerHTML=''; if(onClose) onClose(); }
+  });
+}
+
+/* Quick inflow modal for specific material */
+function openQuickInflow(companyId, materialId){
+  const company = getCompanyById(companyId);
+  const mat = company.materials.find(m=>m.id===materialId);
+  const html = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Add Inflow — ${mat.name}</div>
+      <div class="tiny muted">Company: ${company.name}</div>
+    </div>
+    <hr>
+    <label>Quantity</label>
+    <div class="input-inline">
+      <input id="q_qty" type="number" placeholder="e.g. 50" />
+      <select id="q_unit"><option value="kg">kg</option>${Object.keys(mat.unitMappings||{}).map(u=>`<option value="${u}">${u} (=${mat.unitMappings[u]}kg)</option>`).join('')}</select>
+    </div>
+    <label>Price per kg (optional)</label><input id="q_price" type="number" step="0.01" />
+    <label>Note</label><input id="q_note" />
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button class="btn ghost" id="q_cancel">Cancel</button>
+      <button class="btn" id="q_confirm">Confirm & Save</button>
+    </div>`;
+  openModal(html);
+
+  document.getElementById('q_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('q_confirm').onclick = ()=>{
+    const qtyRaw = Number(document.getElementById('q_qty').value);
+    const unit = document.getElementById('q_unit').value;
+    const price = document.getElementById('q_price').value ? Number(document.getElementById('q_price').value) : null;
+    const note = document.getElementById('q_note').value || '';
+    if(!qtyRaw || qtyRaw<=0){ alert('Enter a valid quantity'); return; }
+    const qtyKg = convertToKg(mat, qtyRaw, unit);
+    const entry = { id: uid('entry'), type:'inflow', materialId:mat.id, quantityKg: qtyKg, unit, qtyRaw, pricePerKg: price, note, timestamp: now() };
+    company.entries = company.entries || [];
+    company.entries.push(entry);
+    saveLocal('inflow for '+mat.name);
+    document.getElementById('modalRoot').innerHTML='';
+    renderAll();
+  };
+}
+
+/* Quick outflow (sale) */
+function openQuickOutflow(companyId, materialId){
+  const company = getCompanyById(companyId);
+  const mat = company.materials.find(m=>m.id===materialId);
+  const html = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Add Outflow — ${mat.name}</div>
+      <div class="tiny muted">Company: ${company.name}</div>
+    </div>
+    <hr>
+    <label>Quantity</label>
+    <div class="input-inline">
+      <input id="q_qty" type="number" placeholder="e.g. 2" />
+      <select id="q_unit"><option value="kg">kg</option>${Object.keys(mat.unitMappings||{}).map(u=>`<option value="${u}">${u} (=${mat.unitMappings[u]}kg)</option>`).join('')}</select>
+    </div>
+    <label>Price per kg (optional)</label><input id="q_price" type="number" step="0.01" />
+    <label>Note</label><input id="q_note" />
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button class="btn ghost" id="q_cancel">Cancel</button>
+      <button class="btn warn" id="q_confirm">Confirm & Save</button>
+    </div>`;
+  openModal(html);
+
+  document.getElementById('q_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('q_confirm').onclick = ()=>{
+    const qtyRaw = Number(document.getElementById('q_qty').value);
+    const unit = document.getElementById('q_unit').value;
+    const price = document.getElementById('q_price').value ? Number(document.getElementById('q_price').value) : null;
+    const note = document.getElementById('q_note').value || '';
+    if(!qtyRaw || qtyRaw<=0){ alert('Enter a valid quantity'); return; }
+    const qtyKg = convertToKg(mat, qtyRaw, unit);
+    const entry = { id: uid('entry'), type:'outflow', materialId:mat.id, quantityKg: qtyKg, unit, qtyRaw, pricePerKg: price, note, timestamp: now() };
+    company.entries = company.entries || [];
+    company.entries.push(entry);
+    saveLocal('outflow for '+mat.name);
+    document.getElementById('modalRoot').innerHTML='';
+    renderAll();
+  };
+}
+
+/* Open Manage modal (for adding companies & editing materials) */
+function openManage(){
+  const html = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700">Manage Companies & Materials</div>
+      <div class="tiny muted">Small changes live-saved</div>
+    </div><hr>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <label>Companies</label>
+        <div id="manageCompanies"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="newCompanyName" placeholder="New company name" />
+          <button class="btn" id="addCompanyBtn">Add</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:240px">
+        <label>Selected company materials</label>
+        <div id="manageMaterials"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input id="newMaterialName" placeholder="Material name (e.g., Urea)" />
+          <button class="btn" id="addMaterialBtn">Add</button>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn ghost" id="m_close">Close</button>
+    </div>`;
+  openModal(html);
+
+  const selCompany = document.getElementById('companySelect').value;
+  renderManageCompanies(selCompany);
+  renderManageMaterials(selCompany);
+
+  document.getElementById('addCompanyBtn').onclick = ()=>{
+    const name = document.getElementById('newCompanyName').value.trim();
+    if(!name) return alert('Enter name');
+    DATA.companies.push({ id: uid('cmp'), name, materials:[], entries:[] });
+    document.getElementById('newCompanyName').value='';
+    saveLocal('Added company '+name);
+    renderManageCompanies(null); renderCompanyOptions(); renderAll();
+  };
+  document.getElementById('addMaterialBtn').onclick = ()=>{
+    const name = document.getElementById('newMaterialName').value.trim();
+    if(!name) return alert('Enter name');
+    const compId = document.getElementById('companySelect').value;
+    const comp = getCompanyById(compId);
+    if(!comp) return alert('Select a company');
+    comp.materials.push({ id: uid('mat'), name, unitMappings:{ rack:50 }, lowStockKg:100, createdAt: now() });
+    document.getElementById('newMaterialName').value='';
+    saveLocal('Added material '+name);
+    renderManageMaterials(compId); renderAll();
+  };
+
+  document.getElementById('m_close').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+}
+
+/* Helpers for manage lists inside modal */
+function renderManageCompanies(selectedId){
+  const wrap = document.getElementById('manageCompanies');
+  wrap.innerHTML = '';
+  for(const c of DATA.companies){
+    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.alignItems='center'; div.style.padding='8px'; div.style.border='1px solid #f1f5f7'; div.style.marginBottom='6px'; div.style.borderRadius='8px';
+    div.innerHTML = `<div><strong>${c.name}</strong><div class="tiny muted">${c.materials.length} materials</div></div>`;
+    const right = document.createElement('div');
+    const selBtn = document.createElement('button'); selBtn.className='btn ghost'; selBtn.textContent='Select';
+    selBtn.onclick = ()=> { document.getElementById('companySelect').value = c.id; renderManageMaterials(c.id); renderAll(); };
+    const delBtn = document.createElement('button'); delBtn.className='btn danger'; delBtn.textContent='Delete';
+    delBtn.onclick = ()=>{
+      if(!confirm('Delete company and all its data?')) return;
+      DATA.companies = DATA.companies.filter(x=>x.id!==c.id);
+      saveLocal('Deleted company');
+      renderManageCompanies(null); renderCompanyOptions(); renderAll(); document.getElementById('modalRoot').innerHTML='';
+    };
+    right.appendChild(selBtn); right.appendChild(delBtn);
+    div.appendChild(right);
+    wrap.appendChild(div);
+  }
+}
+
+function renderManageMaterials(companyId){
+  const wrap = document.getElementById('manageMaterials');
+  wrap.innerHTML = '';
+  const comp = getCompanyById(companyId) || DATA.companies[0];
+  if(!comp) return;
+  for(const m of comp.materials){
+    const div = document.createElement('div'); div.style.padding='8px'; div.style.border='1px solid #f1f5f7'; div.style.marginBottom='6px'; div.style.borderRadius='8px';
+    div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>${m.name}</strong><div class="tiny muted">Threshold: ${m.lowStockKg||0} kg • Mappings: ${Object.keys(m.unitMappings||{}).map(k=>k+'='+m.unitMappings[k]+'kg').join(', ')}</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn ghost" onclick='editMaterial("${comp.id}","${m.id}")'>Edit</button>
+        <button class="btn danger" onclick='deleteMaterial("${comp.id}","${m.id}")'>Delete</button>
+      </div>
+    </div>`;
+    wrap.appendChild(div);
+  }
+}
+
+/* Material edit & delete helpers */
+function editMaterial(compId, matId){
+  const comp = getCompanyById(compId);
+  const m = comp.materials.find(x=>x.id===matId);
+  const html = `<div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700">Edit material — ${m.name}</div>
+  </div><hr>
+  <label>Name</label><input id="em_name" value="${m.name}" />
+  <label>Low-stock threshold (kg)</label><input id="em_low" type="number" value="${m.lowStockKg||0}" />
+  <label>Unit mappings (e.g., rack => 50)</label>
+  <div id="em_maps"></div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <input id="em_map_name" placeholder="unit name e.g., rack" /><input id="em_map_kg" placeholder="kg per unit" type="number" />
+    <button class="btn" id="em_add_map">Add</button>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+    <button class="btn ghost" id="em_cancel">Cancel</button>
+    <button class="btn" id="em_save">Save</button>
+  </div>`;
+  openModal(html);
+
+  function renderMaps(){
+    const mapsDiv = document.getElementById('em_maps');
+    mapsDiv.innerHTML = '';
+    for(const k of Object.keys(m.unitMappings||{})){
+      const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px'; row.style.marginBottom='6px'; row.style.border='1px solid #f1f5f7'; row.style.borderRadius='6px';
+      row.innerHTML = `<div>${k} = ${m.unitMappings[k]} kg</div>`;
+      const rm = document.createElement('button'); rm.className='btn ghost'; rm.textContent='Remove';
+      rm.onclick = ()=> { delete m.unitMappings[k]; renderMaps(); };
+      row.appendChild(rm);
+      mapsDiv.appendChild(row);
+    }
+  }
+  renderMaps();
+  document.getElementById('em_add_map').onclick = ()=>{
+    const name = document.getElementById('em_map_name').value.trim();
+    const kg = Number(document.getElementById('em_map_kg').value);
+    if(!name || !kg || kg<=0) return alert('Enter valid mapping');
+    m.unitMappings = m.unitMappings || {}; m.unitMappings[name] = kg;
+    document.getElementById('em_map_name').value=''; document.getElementById('em_map_kg').value='';
+    renderMaps();
+  };
+  document.getElementById('em_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('em_save').onclick = ()=>{
+    const newName = document.getElementById('em_name').value.trim();
+    m.name = newName || m.name;
+    m.lowStockKg = Number(document.getElementById('em_low').value) || 0;
+    saveLocal('Material edited: '+m.name);
+    document.getElementById('modalRoot').innerHTML='';
+    renderAll();
+  };
+}
+
+function deleteMaterial(compId, matId){
+  if(!confirm('Delete material and all entries for it?')) return;
+  const comp = getCompanyById(compId);
+  comp.materials = comp.materials.filter(m=>m.id!==matId);
+  comp.entries = comp.entries.filter(e=>e.materialId!==matId);
+  saveLocal('Material deleted');
+  renderAll();
+  document.getElementById('modalRoot').innerHTML='';
+}
+
+/* History modal */
+function openHistory(){
+  const comp = getCompanyById(document.getElementById('companySelect').value);
+  let rows = '';
+  const sorted = (comp.entries || []).slice().sort((a,b)=>b.timestamp-a.timestamp);
+  for(const e of sorted){
+    const m = comp.materials.find(x=>x.id===e.materialId);
+    const matName = m ? m.name : '—';
+    const amount = e.pricePerKg ? (e.pricePerKg * e.quantityKg) : '';
+    rows += `<tr>
+      <td>${fmtDate(e.timestamp)}</td>
+      <td>${e.type}</td>
+      <td>${matName}</td>
+      <td>${e.quantityKg} kg <div class="tiny muted">(${e.qtyRaw} ${e.unit})</div></td>
+      <td>${amount ? toINR(amount) : '-'}</td>
+      <td>${e.note || ''}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost" onclick='editEntry("${comp.id}","${e.id}")'>Edit</button>
+        <button class="btn danger" onclick='deleteEntry("${comp.id}","${e.id}")'>Delete</button>
+      </td>
+    </tr>`;
+  }
+  const html = `<div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="font-weight:700">History — ${comp.name}</div>
+    <div class="tiny muted">Total entries: ${comp.entries.length}</div>
+  </div><hr>
+  <div style="overflow:auto;max-height:60vh">
+    <table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left"><th>Date</th><th>Type</th><th>Material</th><th>Qty</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan=7 class="tiny muted">No entries yet</td></tr>'}</tbody></table>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px">
+    <button class="btn ghost" id="h_close">Close</button>
+  </div>`;
+  openModal(html);
+  document.getElementById('h_close').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+}
+
+/* Edit single entry */
+function editEntry(compId, entryId){
+  const comp = getCompanyById(compId);
+  const e = comp.entries.find(x=>x.id===entryId);
+  const mat = comp.materials.find(m=>m.id===e.materialId);
+  const html = `<div style="font-weight:700">Edit entry</div><hr>
+    <label>Type</label>
+    <select id="ee_type"><option value="inflow">Inflow</option><option value="outflow">Outflow</option></select>
+    <label>Material</label><select id="ee_mat"></select>
+    <label>Quantity</label>
+    <div class="input-inline"><input id="ee_qty" type="number" /><select id="ee_unit"><option value="kg">kg</option>${(mat?Object.keys(mat.unitMappings||{}):[]).map(u=>`<option value="${u}">${u}</option>`).join('')}</select></div>
+    <label>Price per kg</label><input id="ee_price" type="number" step="0.01" />
+    <label>Note</label><input id="ee_note" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="btn ghost" id="ee_cancel">Cancel</button>
+      <button class="btn" id="ee_save">Save</button>
+    </div>`;
+  openModal(html);
+  // populate materials
+  const selectMat = document.getElementById('ee_mat');
+  for(const mm of comp.materials){ const opt = document.createElement('option'); opt.value = mm.id; opt.textContent = mm.name; selectMat.appendChild(opt); }
+  document.getElementById('ee_type').value = e.type;
+  document.getElementById('ee_mat').value = e.materialId;
+  document.getElementById('ee_qty').value = e.qtyRaw || e.quantityKg;
+  document.getElementById('ee_unit').value = e.unit || 'kg';
+  document.getElementById('ee_price').value = e.pricePerKg || '';
+  document.getElementById('ee_note').value = e.note || '';
+  document.getElementById('ee_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('ee_save').onclick = ()=>{
+    const type = document.getElementById('ee_type').value;
+    const matId = document.getElementById('ee_mat').value;
+    const qtyRaw = Number(document.getElementById('ee_qty').value);
+    const unit = document.getElementById('ee_unit').value;
+    const price = document.getElementById('ee_price').value ? Number(document.getElementById('ee_price').value) : null;
+    const note = document.getElementById('ee_note').value;
+    if(!qtyRaw || qtyRaw<=0) return alert('Enter valid qty');
+    const matObj = comp.materials.find(m=>m.id===matId);
+    const qtyKg = convertToKg(matObj, qtyRaw, unit);
+    e.type = type; e.materialId = matId; e.qtyRaw = qtyRaw; e.unit = unit; e.quantityKg = qtyKg; e.pricePerKg = price; e.note = note; e.timestamp = now();
+    saveLocal('Entry edited');
+    document.getElementById('modalRoot').innerHTML=''; renderAll(); openHistory();
+  };
+}
+
+/* Delete entry */
+function deleteEntry(compId, entryId){
+  if(!confirm('Delete entry?')) return;
+  const comp = getCompanyById(compId);
+  comp.entries = comp.entries.filter(x=>x.id!==entryId);
+  saveLocal('Entry deleted');
+  renderAll();
+  openHistory();
+}
+
+/* ===========================
+   Menu & event wiring
+   =========================== */
+document.getElementById('hamb').addEventListener('click', ()=> {
+  const d = document.getElementById('drawer');
+  if(window.innerWidth <= 900){ d.classList.toggle('open'); } else { d.classList.toggle('hide'); }
+});
+document.getElementById('menuDashboard').addEventListener('click', ()=> { closeDrawer(); renderAll(); });
+document.getElementById('menuHistory').addEventListener('click', ()=> { closeDrawer(); openHistory(); });
+document.getElementById('menuManage').addEventListener('click', ()=> { closeDrawer(); openManage(); });
+document.getElementById('menuExport').addEventListener('click', ()=> { closeDrawer(); exportJson(); alert('Export started'); });
+document.getElementById('menuImport').addEventListener('click', ()=> { closeDrawer(); document.getElementById('fileInput').click(); });
+
+function closeDrawer(){ const d = document.getElementById('drawer'); if(window.innerWidth<=900) d.classList.remove('open'); else d.classList.add('hide'); }
+
+document.getElementById('btnInflow').addEventListener('click', ()=> {
+  const cmp = document.getElementById('companySelect').value;
+  // open modal with company selection + material list
+  openModal(`<div style="font-weight:700">Add Inflow</div><hr>
+    <label>Company</label><select id="g_company">${DATA.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+    <label>Material</label><select id="g_material"></select>
+    <label>Quantity</label><div class="input-inline"><input id="g_qty" type="number" placeholder="e.g. 50" /><select id="g_unit"><option value="kg">kg</option></select></div>
+    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" />
+    <label>Note</label><input id="g_note" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn" id="g_save">Confirm & Save</button></div>`);
+  // populate materials for current company
+  document.getElementById('g_company').value = cmp;
+  populateMaterialSelect('g_company','g_material','g_unit');
+  document.getElementById('g_company').onchange = ()=> populateMaterialSelect('g_company','g_material','g_unit');
+  document.getElementById('g_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('g_save').onclick = ()=>{
+    const companyId = document.getElementById('g_company').value;
+    const materialId = document.getElementById('g_material').value;
+    const qtyRaw = Number(document.getElementById('g_qty').value);
+    const unit = document.getElementById('g_unit').value;
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
+    const note = document.getElementById('g_note').value;
+    if(!qtyRaw || qtyRaw<=0) return alert('Enter valid qty');
+    const comp = getCompanyById(companyId); const mat = comp.materials.find(m=>m.id===materialId);
+    const qtyKg = convertToKg(mat, qtyRaw, unit);
+    comp.entries.push({ id: uid('entry'), type:'inflow', materialId, qtyRaw, unit, quantityKg: qtyKg, pricePerKg: price, note, timestamp: now() });
+    saveLocal('Inflow saved');
+    document.getElementById('modalRoot').innerHTML=''; renderAll();
+  };
+});
+
+document.getElementById('btnOutflow').addEventListener('click', ()=> {
+  const cmp = document.getElementById('companySelect').value;
+  openModal(`<div style="font-weight:700">Add Outflow</div><hr>
+    <label>Company</label><select id="g_company">${DATA.companies.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select>
+    <label>Material</label><select id="g_material"></select>
+    <label>Quantity</label><div class="input-inline"><input id="g_qty" type="number" placeholder="e.g. 2" /><select id="g_unit"><option value="kg">kg</option></select></div>
+    <label>Price per kg (optional)</label><input id="g_price" type="number" step="0.01" />
+    <label>Note</label><input id="g_note" />
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn warn" id="g_save">Confirm & Save</button></div>`);
+  document.getElementById('g_company').value = cmp;
+  populateMaterialSelect('g_company','g_material','g_unit');
+  document.getElementById('g_company').onchange = ()=> populateMaterialSelect('g_company','g_material','g_unit');
+  document.getElementById('g_cancel').onclick = ()=> document.getElementById('modalRoot').innerHTML='';
+  document.getElementById('g_save').onclick = ()=>{
+    const companyId = document.getElementById('g_company').value;
+    const materialId = document.getElementById('g_material').value;
+    const qtyRaw = Number(document.getElementById('g_qty').value);
+    const unit = document.getElementById('g_unit').value;
+    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
+    const note = document.getElementById('g_note').value;
+    if(!qtyRaw || qtyRaw<=0) return alert('Enter valid qty');
+    const comp = getCompanyById(companyId); const mat = comp.materials.find(m=>m.id===materialId);
+    const qtyKg = convertToKg(mat, qtyRaw, unit);
+    comp.entries.push({ id: uid('entry'), type:'outflow', materialId, qtyRaw, unit, quantityKg: qtyKg, pricePerKg: price, note, timestamp: now() });
+    saveLocal('Outflow saved');
+    document.getElementById('modalRoot').innerHTML=''; renderAll();
+  };
+});
+
+/* Populate material select and unit select */
+function populateMaterialSelect(companySelectId, materialSelectId, unitSelectId){
+  const cid = document.getElementById(companySelectId).value;
+  const comp = getCompanyById(cid);
+  const matSel = document.getElementById(materialSelectId);
+  matSel.innerHTML = '';
+  for(const m of comp.materials){ const opt = document.createElement('option'); opt.value=m.id; opt.textContent=m.name; matSel.appendChild(opt); }
+  if(materialSelectId && unitSelectId){
+    const uSel = document.getElementById(unitSelectId);
+    const populateUnits = ()=> {
+      const mm = comp.materials.find(x=>x.id===matSel.value);
+      uSel.innerHTML = '<option value="kg">kg</option>';
+      for(const k of Object.keys(mm.unitMappings||{})){ const o = document.createElement('option'); o.value=k; o.textContent=`${k} (= ${mm.unitMappings[k]} kg)`; uSel.appendChild(o); }
+    };
+    matSel.onchange = populateUnits;
+    populateUnits();
+  }
+}
+
+/* menu buttons linking to same actions */
+document.getElementById('btnManage').addEventListener('click', ()=> openManage());
+document.getElementById('btnHistory').addEventListener('click', ()=> openHistory());
+
+/* file import handling */
+document.getElementById('fileInput').addEventListener('change', (ev)=> {
+  const f = ev.target.files[0];
+  if(!f) return;
+  importJsonFile(f);
+  ev.target.value = '';
+});
+
+/* company selector change */
+document.getElementById('companySelect').addEventListener('change', ()=> renderAll());
+
+/* Open material manage directly */
+function openManageMaterial(compId, matId){
+  // open manage modal and then open edit immediately
+  openManage();
+  setTimeout(()=> editMaterial(compId, matId), 200);
+}
+
+/* Quick open for specific flows */
+window.openQuickInflow = openQuickInflow;
+window.openQuickOutflow = openQuickOutflow;
+window.openManageMaterial = openManageMaterial;
+window.editEntry = editEntry;
+window.deleteEntry = deleteEntry;
+
+/* ===========================
+   Init
+   =========================== */
+loadLocal();
+renderAll();
+
+/* Ensure drawer UI state reasonable on resize */
+window.addEventListener('resize', ()=> {
+  const d = document.getElementById('drawer');
+  if(window.innerWidth > 900){ d.classList.remove('open'); d.classList.remove('hide'); } else { d.classList.add('hide'); }
+});
+
+</script>
+</body>
+</html>
