@@ -128,11 +128,9 @@
 
 <script>
 /* =========================================================
-   Fertilizers Supply Chain Management (bags-first, weighted avg)
-   - Rebuild material stock & avg by replaying entries (reliable)
-   - Sale entries store costPerBag & costTotal (cost basis)
-   - Reports include profitability
-   - Date pickers for custom date range (default: today)
+   Fixed app: accurate weighted-average price, local dates,
+   correct profit calculation, and immediate updates.
+   UI unchanged from your previous version.
    ========================================================= */
 
 /* FIREBASE CONFIG (your config) */
@@ -177,6 +175,12 @@ function toINR(x){ if(x===undefined||x===null||x==='') return '-'; return '₹' 
 function normalizeName(n){ return (n || '').trim().toLowerCase(); }
 function dateOnly(d){ const t = new Date(d); t.setHours(0,0,0,0); return t; }
 function sameDay(a,b){ return dateOnly(a).getTime() === dateOnly(b).getTime(); }
+function localDateString(date = new Date()){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
 
 /* Modal helpers */
 function showModal(html){
@@ -216,13 +220,8 @@ function getMaterialPricePerBag(mat){
   return null;
 }
 
-/* ---------- Rebuild material from entries (sequential replay) ----------
-   - Fetches all entries for the material ordered by createdAt asc
-   - Replays each one, maintaining stock and weighted-average price
-   - Updates material doc with final stockBags & pricePerBag
-   - Updates sale entries with costPerBag & costTotal (cost basis at time of sale)
-   - Also ensures purchase entries have totalValue stored
-   This ensures correctness even after edits/deletes.
+/* ---------- Rebuild function ----------
+   When editing or deleting entries we rebuild a material's stock & avg by replaying entries
 -----------------------------------------------------------------------*/
 async function rebuildMaterialFromEntries(materialId){
   if(!currentCompanyId || !materialId) return;
@@ -231,58 +230,39 @@ async function rebuildMaterialFromEntries(materialId){
   const entriesRef = companyRef.collection('entries');
   showLoader('Rebuilding material…','Reconciling stock & avg price');
   try{
-    // fetch entries for this material in chronological order (oldest first)
     const snap = await entriesRef.where('materialId','==',materialId).orderBy('createdAt','asc').get();
-    // start from zero or legacy stock? We'll rebuild from entries alone for authoritative result.
-    let stock = 0; // bags
-    let avg = null; // price per bag (weighted average)
-    // We'll batch updates for entries and update material once at end
+    let stock = 0;
+    let avg = null;
     const batch = db.batch();
-    snap.forEach(doc => {
-      // (we'll process below after building array)
-    });
-    // Convert to array for async processing
-    const entries = snap.docs.map(d => ({ id: d.id, data: d.data() }));
-    for(const eObj of entries){
-      const e = eObj.data;
-      // ensure numeric bags
+    // iterate in chronological order
+    for(const doc of snap.docs){
+      const e = doc.data();
+      const id = doc.id;
       const bags = Number(e.bags || 0);
       const price = (e.pricePerBag !== undefined && e.pricePerBag !== null) ? Number(e.pricePerBag) : null;
       if(e.type === 'purchase'){
-        // purchase: update avg using weighted formula
-        const oldStock = stock;
-        const oldAvg = avg;
-        if(oldStock <= 0 || oldAvg === null || oldAvg === undefined) {
-          // no prior stock -> avg = price (if provided), else keep null
-          avg = price !== null ? price : (avg === null ? null : avg);
+        if(stock <= 0 || avg === null){
+          // If no prior stock, adopt price if provided
+          if(price !== null) avg = price;
         } else {
-          // if price provided, compute weighted avg; if price missing, keep old avg
-          if(price !== null) {
-            const numerator = (oldStock * oldAvg) + (bags * price);
-            const denominator = (oldStock + bags);
-            avg = denominator > 0 ? (numerator / denominator) : oldAvg;
+          if(price !== null){
+            const numerator = (stock * avg) + (bags * price);
+            const denominator = (stock + bags);
+            avg = denominator > 0 ? (numerator / denominator) : avg;
           }
         }
-        stock = stock + bags;
-        // ensure totalValue stored for purchase
+        stock += bags;
         const totalValue = bags * (price || 0);
-        batch.update(entriesRef.doc(eObj.id), { totalValue: totalValue || 0, pricePerBag: price || null });
+        batch.update(entriesRef.doc(id), { totalValue: totalValue || 0, pricePerBag: price || null });
       } else if(e.type === 'sale'){
-        // sale: cost basis is current avg (before sale)
-        const costPerBag = avg !== null ? avg : 0;
+        const costPerBag = (avg !== null) ? avg : 0;
         const costTotal = bags * costPerBag;
-        // store costPerBag & costTotal in sale entry for later profit calcs
-        batch.update(entriesRef.doc(eObj.id), { costPerBag: costPerBag || 0, costTotal: costTotal || 0, pricePerBag: e.pricePerBag || null, totalValue: (Number(e.totalValue)|| (bags * (e.pricePerBag || 0))) });
-        stock = stock - bags;
-        // note: avg stays same on sale
-      } else {
-        // unknown type: leave
+        batch.update(entriesRef.doc(id), { costPerBag: costPerBag || 0, costTotal: costTotal || 0, pricePerBag: e.pricePerBag || null, totalValue: (Number(e.totalValue) || (bags*(e.pricePerBag||0))) });
+        stock -= bags;
       }
     }
-    // commit batch of entry updates
     if(!snap.empty) await batch.commit();
-    // ensure stock not negative (allow zero or positive; if negative, keep as is but warn)
-    // update material doc
+    // update material document with final values
     const matPatch = { stockBags: Math.round(stock * 100) / 100, pricePerBag: (avg !== null ? Math.round(avg * 100) / 100 : null), updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     await matsRef.update(matPatch);
   }catch(err){
@@ -558,20 +538,20 @@ function renderMaterials(materials){
   cachedTotalInventoryValue = Math.round(total*100)/100;
   document.getElementById('totalInventoryValue').textContent = toINR(cachedTotalInventoryValue);
 
-  // set default date pickers to today
-  const today = new Date().toISOString().slice(0,10);
-  document.getElementById('reportFrom').value = today;
-  document.getElementById('reportTo').value = today;
+  // set default date pickers to local today
+  const todayStr = localDateString();
+  document.getElementById('reportFrom').value = todayStr;
+  document.getElementById('reportTo').value = todayStr;
 
   // wire report buttons
-  document.getElementById('btnReportToday').onclick = ()=>{ document.getElementById('reportFrom').value = today; document.getElementById('reportTo').value = today; renderReports(); };
+  document.getElementById('btnReportToday').onclick = ()=>{ const td = localDateString(); document.getElementById('reportFrom').value = td; document.getElementById('reportTo').value = td; renderReports(); };
   document.getElementById('btnReportWeek').onclick = ()=>{
     const to = new Date(); const from = new Date(); from.setDate(from.getDate()-6);
-    document.getElementById('reportFrom').value = from.toISOString().slice(0,10); document.getElementById('reportTo').value = to.toISOString().slice(0,10); renderReports();
+    document.getElementById('reportFrom').value = localDateString(from); document.getElementById('reportTo').value = localDateString(to); renderReports();
   };
   document.getElementById('btnReportMonth').onclick = ()=>{
     const to = new Date(); const from = new Date(); from.setDate(from.getDate()-29);
-    document.getElementById('reportFrom').value = from.toISOString().slice(0,10); document.getElementById('reportTo').value = to.toISOString().slice(0,10); renderReports();
+    document.getElementById('reportFrom').value = localDateString(from); document.getElementById('reportTo').value = localDateString(to); renderReports();
   };
   document.getElementById('btnReportApply').onclick = renderReports;
 
@@ -582,13 +562,15 @@ function renderMaterials(materials){
 /* ---------- Reports & profit calculations ---------- */
 function parseDateInput(val){
   if(!val) return null;
-  const t = new Date(val);
+  const parts = val.split('-').map(x=>Number(x));
+  if(parts.length !== 3) return null;
+  const [y,m,d] = parts;
+  const t = new Date(y, m-1, d);
   t.setHours(0,0,0,0);
   return t;
 }
 function entriesBetween(fromDate, toDate){
   if(!fromDate || !toDate) return [];
-  // toDate inclusive: set end = toDate + 1 day exclusive
   const start = new Date(fromDate); start.setHours(0,0,0,0);
   const end = new Date(toDate); end.setHours(24,0,0,0);
   return lastEntries.filter(e => {
@@ -605,39 +587,33 @@ function renderReports(){
   const container = document.getElementById('reportsResult');
   if(!from || !to){ container.innerHTML = '<div class="tiny muted">Select valid From/To dates</div>'; return; }
   const slice = entriesBetween(from,to);
-  // purchases
   const purchases = slice.filter(e => e.type === 'purchase');
   const sales = slice.filter(e => e.type === 'sale');
   const sumBagsPurchased = purchases.reduce((s,e)=>s + Number(e.bags||0), 0);
   const sumValuePurchased = purchases.reduce((s,e)=>s + Number(e.totalValue||0), 0);
   const sumBagsSold = sales.reduce((s,e)=>s + Number(e.bags||0), 0);
   const sumValueSold = sales.reduce((s,e)=>s + Number(e.totalValue||0), 0);
-  // cost basis for sold items: sum of costTotal fields on sales (these are computed by rebuild routine)
   const costBasisSold = sales.reduce((s,e)=>s + Number(e.costTotal||0), 0);
   const profit = sumValueSold - costBasisSold;
   const profitPct = (sumValueSold > 0) ? (profit / sumValueSold * 100) : 0;
-  // net stock change (purchases - sales)
   const netBagsChange = sumBagsPurchased - sumBagsSold;
-  // total inventory value as of now (cached)
   const totalInv = cachedTotalInventoryValue;
-  // show small summary
   container.innerHTML = `
     <div style="font-weight:700;margin-bottom:6px">Report (${from.toLocaleDateString('en-IN')} → ${to.toLocaleDateString('en-IN')})</div>
     <div class="mini">Purchases: ${sumBagsPurchased} bags • ${toINR(sumValuePurchased)}</div>
     <div class="mini">Sales: ${sumBagsSold} bags • ${toINR(sumValueSold)}</div>
     <div class="mini">Cost basis of sold items: ${toINR(costBasisSold)}</div>
-    <div style="margin-top:6px;font-weight:700">Profit: ${toINR(profit)} (${profitPct ? (profitPct.toFixed(2) + '%') : '—'})</div>
+    <div style="margin-top:6px;font-weight:700">Profit: ${toINR(profit)} ${profitPct ? '(' + profitPct.toFixed(2) + '%)' : ''}</div>
     <div class="mini" style="margin-top:8px">Net stock change: ${netBagsChange} bags</div>
     <div class="mini" style="margin-top:8px">Total inventory value (now): ${toINR(totalInv)}</div>
   `;
 }
 
-/* ---------- Today modal (uses report logic) ---------- */
+/* ---------- Today modal ---------- */
 function openTodayModal(){
   if(!currentCompanyId) return alert('Select a company first');
   const today = new Date();
-  const td = today.toISOString().slice(0,10);
-  // temporarily compute today's report
+  const td = localDateString(today);
   const from = parseDateInput(td);
   const to = parseDateInput(td);
   const slice = entriesBetween(from,to);
@@ -672,28 +648,66 @@ function openTodayModal(){
   document.getElementById('today_close').onclick = closeModal;
 }
 
-/* ---------- Add Entry (purchase / sale) ----------
-   - For purchases: create entry with totalValue, then rebuild material to compute avg & stock
-   - For sales: create entry with totalValue and cost fields will be set by rebuild (costPerBag & costTotal)
-   - Using rebuild after write guarantees consistency and historical cost info
+/* ---------- Add Entry (purchase/sale) using transaction ----------
+   - For purchases: compute weighted avg using current stock & avg from material doc
+   - For sales: read current avg price (cost basis) then record costPerBag & costTotal in the entry
+   This avoids race conditions and ensures immediate consistent updates.
 ------------------------------------------------------------------------*/
 async function addEntryBags(materialId, type, bagsCount, pricePerBag, party, note){
   if(!currentCompanyId) return alert('Select a company first');
   if(!materialId || bagsCount <= 0) return alert('Invalid input');
   const companyRef = db.collection('companies').doc(currentCompanyId);
-  const entriesCol = companyRef.collection('entries');
+  const matRef = companyRef.collection('materials').doc(materialId);
+  const entriesRef = companyRef.collection('entries');
   showLoader(type==='purchase' ? 'Saving purchase…' : 'Saving sale…', 'Saving to remote database');
   try{
-    const totalValue = Number(bagsCount) * (pricePerBag ? Number(pricePerBag) : 0);
-    const entryRef = entriesCol.doc();
-    await entryRef.set({
-      type, materialId, bags: bagsCount, unit: 'bags',
-      pricePerBag: pricePerBag || null, totalValue: totalValue || 0,
-      party: party || '', note: note || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdBy: (auth.currentUser && auth.currentUser.uid) || null
+    await db.runTransaction(async tx=>{
+      const matSnap = await tx.get(matRef);
+      if(!matSnap.exists) throw new Error('Material not found');
+      const mat = matSnap.data();
+      const currentStock = (mat.stockBags !== undefined && mat.stockBags !== null) ? Number(mat.stockBags || 0) : (mat.stockKg && mat.kgPerBag ? (Number(mat.stockKg) / Number(mat.kgPerBag || 1)) : 0);
+      const currentAvg = (mat.pricePerBag !== undefined && mat.pricePerBag !== null) ? Number(mat.pricePerBag) : null;
+
+      const entryRef = entriesRef.doc();
+      const totalValue = Number(bagsCount) * (pricePerBag ? Number(pricePerBag) : 0);
+
+      if(type === 'purchase'){
+        let newAvg = currentAvg;
+        if(currentStock <= 0 || currentAvg === null){
+          if(pricePerBag !== null) newAvg = pricePerBag;
+        } else {
+          if(pricePerBag !== null){
+            const numerator = (currentStock * currentAvg) + (bagsCount * pricePerBag);
+            const denominator = (currentStock + bagsCount);
+            newAvg = denominator > 0 ? (numerator / denominator) : currentAvg;
+          }
+        }
+        const newStock = currentStock + bagsCount;
+        tx.set(entryRef, {
+          type, materialId, bags: bagsCount, unit: 'bags', pricePerBag: pricePerBag || null,
+          totalValue: totalValue || 0, party: party || '', note: note || '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: (auth.currentUser && auth.currentUser.uid) || null
+        });
+        tx.update(matRef, { stockBags: Math.round(newStock*100)/100, pricePerBag: (newAvg !== null ? Math.round(newAvg*100)/100 : null), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      } else if(type === 'sale'){
+        const costPerBag = (currentAvg !== null) ? currentAvg : 0;
+        const costTotal = bagsCount * costPerBag;
+        const newStock = currentStock - bagsCount;
+        if(newStock < -0.0001) throw new Error('Not enough stock for this sale');
+        tx.set(entryRef, {
+          type, materialId, bags: bagsCount, unit: 'bags', pricePerBag: pricePerBag || null,
+          totalValue: totalValue || 0, party: party || '', note: note || '',
+          costPerBag: Math.round(costPerBag*100)/100, costTotal: Math.round(costTotal*100)/100,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(), createdBy: (auth.currentUser && auth.currentUser.uid) || null
+        });
+        tx.update(matRef, { stockBags: Math.round(newStock*100)/100, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      } else {
+        throw new Error('Unknown entry type');
+      }
+      // update company updatedAt
+      tx.update(companyRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
-    // now rebuild material from entries to update material.stockBags and material.pricePerBag and write cost basis to sales
-    await rebuildMaterialFromEntries(materialId);
+    // successful transaction will trigger onSnapshot listeners which update UI
   }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
@@ -904,7 +918,7 @@ async function openMaterialEditorDialog(materialId){
         await matsRef.doc(materialId).update({
           name: newName, name_lower: nameNorm, lowStockBags: low, kgPerBag: kgPerBag, pricePerBag: price || null, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        // after manual price change, we might want to rebuild to keep entries' cost consistent — run rebuild
+        // rebuild to ensure entries' cost basis reflect this change if needed
         await rebuildMaterialFromEntries(materialId);
         closeModal(); await renderManageMaterials(); await loadCompaniesToMenu();
       }catch(err){ alert('Save failed: ' + err.message); console.error(err); } finally { hideLoader(); }
@@ -928,7 +942,6 @@ function openHistoryModal(){
 function renderHistory(){
   const container = document.getElementById('historyContainer');
   if(!container) return;
-  // Group entries by date descending
   const grouped = {};
   lastEntries.forEach(e=>{
     const d = e.createdAt ? (e.createdAt.toDate ? e.createdAt.toDate() : new Date(e.createdAt)) : new Date();
@@ -976,7 +989,7 @@ function renderHistory(){
   container.innerHTML = html;
 }
 
-/* ---------- Edit entry: robust approach (rebuild after change) ---------- */
+/* ---------- Edit entry ---------- */
 async function openEditEntryDialog(entryId){
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   const eDoc = await entryRef.get();
@@ -1005,21 +1018,21 @@ async function openEditEntryDialog(entryId){
     if(newBags <= 0) return alert('Invalid number of bags');
     showLoader('Updating entry…','Applying changes to remote DB');
     try{
-      // update the entry doc
+      const oldMatId = e.materialId;
       await entryRef.update({
         type: newType, materialId: newMatId, bags: newBags, pricePerBag: newPrice || null,
         party: newParty || '', note: newNote || '', updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      // after changing an entry, rebuild the affected materials (both old and new if changed)
+      // rebuild affected materials
       await rebuildMaterialFromEntries(newMatId);
-      if(newMatId !== e.materialId) await rebuildMaterialFromEntries(e.materialId);
+      if(newMatId !== oldMatId) await rebuildMaterialFromEntries(oldMatId);
       alert('Entry updated');
       closeModal();
     }catch(err){ alert('Update failed: ' + err.message); console.error(err); } finally { hideLoader(); }
   };
 }
 
-/* Delete entry (then rebuild material) */
+/* Delete entry */
 async function deleteEntry(entryId){
   if(!confirm('Delete this entry? This will adjust the material stock accordingly.')) return;
   showLoader('Deleting entry…','Adjusting stock and removing entry');
@@ -1034,7 +1047,7 @@ async function deleteEntry(entryId){
   }catch(err){ alert('Delete failed: ' + err.message); console.error(err); } finally { hideLoader(); }
 }
 
-/* ---------- Export CSV (bags & cost info) ---------- */
+/* ---------- Export CSV ---------- */
 document.getElementById('menuExport').addEventListener('click', async ()=>{
   showLoader('Exporting data…','Preparing CSV for download');
   try{
@@ -1139,7 +1152,7 @@ document.getElementById('btnSale').addEventListener('click', ()=> {
   };
 });
 
-/* Expose functions used by inline handlers */
+/* Expose for inline handlers */
 window.openQuickPurchase = openQuickPurchase;
 window.openQuickSale = openQuickSale;
 window.openMaterialEditorDialog = openMaterialEditorDialog;
