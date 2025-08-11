@@ -161,83 +161,34 @@
 /*
   Firebase rewrite — single-file SPA
   -------------------------------
-  BEFORE using:
-  1) Create a Firebase project (https://console.firebase.google.com/)
-  2) Enable Firestore (Native mode)
-  3) Enable Authentication -> Sign-in method -> Email/Password
-  4) Create an admin user in Authentication (or use Sign Up button in the app)
-  5) IMPORTANT: Add Firestore rules:
-     - For simple setup (write only if authenticated):
-       rules_version = '2';
-       service cloud.firestore {
-         match /databases/{database}/documents {
-           match /{document=**} {
-             allow read: if true;
-             allow write: if request.auth != null;
-           }
-         }
-       }
-     - In production, use stricter rules and custom claims for admin.
-  6) In your Firebase console -> Project settings -> SDK setup -> Config, copy the web config.
-  7) Paste that config into FIREBASE_CONFIG below.
+  Config inserted below using data provided.
 
-  DATA MODEL (Firestore):
-  - Collection: companies
-    - Doc ID: <companyId> (e.g., "aditya-fertilizers")
-      Fields:
-        - name: string
-        - createdAt: timestamp
-      Subcollection: materials
-        - Doc ID: <materialId>
-          Fields:
-            - name: string
-            - stockKg: number
-            - unitMappings: map (e.g., { rack: 50 })
-            - lowStockKg: number
-            - createdAt: timestamp
-      Subcollection: entries
-        - Doc ID: <entryId>
-          Fields:
-            - type: 'inflow' | 'outflow'
-            - materialId: string
-            - qtyRaw: number
-            - unit: string
-            - quantityKg: number
-            - pricePerKg: number | null
-            - note: string
-            - createdAt: timestamp
-
-  HOW CHANGES ARE APPLIED:
-  - On Confirm (inflow/outflow): we create an entry doc and run a transaction to increment/decrement material.stockKg atomically.
-
-  NOTE: Replace FIREBASE_CONFIG with your project config.
+  Make sure Firestore is enabled and Authentication (Email/Password) is ON.
+  Set Firestore rules for development:
+    rules_version = '2';
+    service cloud.firestore {
+      match /databases/{database}/documents {
+        match /{document=**} {
+          allow read: if true;
+          allow write: if request.auth != null;
+        }
+      }
+    }
+  For production, restrict writes to a specific admin UID or use custom claims.
 */
 
-/* ========== PUT YOUR FIREBASE CONFIG HERE ==========
-   Replace the object below with the config from Firebase Console.
-   It looks like:
-   {
-     apiKey: "...",
-     authDomain: "PROJECT.firebaseapp.com",
-     projectId: "PROJECT",
-     storageBucket: "...",
-     messagingSenderId: "...",
-     appId: "...",
-   }
-*/
+/* ========== FIREBASE CONFIG INSERTED ========== */
 const FIREBASE_CONFIG = {
-  // paste your config here
-  // Example:
-  // apiKey: "AIza....",
-  // authDomain: "aditya-supply.firebaseapp.com",
-  // projectId: "aditya-supply",
-  // storageBucket: "aditya-supply.appspot.com",
-  // messagingSenderId: "123456789",
-  // appId: "1:123:web:abcd"
+  apiKey: "AIzaSyBEybu3XKeK3QOeRIMs-fK2dDwHtpCTqgQ",
+  authDomain: "aditya-supply-chain-b5f61.firebaseapp.com",
+  projectId: "aditya-supply-chain-b5f61",
+  storageBucket: "aditya-supply-chain-b5f61.firebasestorage.app",
+  messagingSenderId: "662836162599",
+  appId: "1:662836162599:web:2b49bde530e4b87924de02",
+  measurementId: "G-DQH00BNH1L"
 };
 
 if(!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey){
-  // show a visible hint to the user in the console and small UI status
   console.warn('Firebase config missing. Paste your Firebase web config into FIREBASE_CONFIG in the HTML.');
   document.getElementById('statusLabel').textContent = 'No Firebase config';
 }
@@ -248,26 +199,23 @@ if(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey){
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
   auth = firebase.auth();
-  // set offline persistence? optional
-  // firebase.firestore().enablePersistence().catch(()=>{});
   document.getElementById('statusLabel').textContent = 'Connected (initializing...)';
 }
 
-/* ========== App state ========== */
+/* ========== App state & helpers ========== */
 let currentCompanyId = null;
 let materialsListener = null;
 let entriesListener = null;
-let unsubscribeCompany = null;
+let lastMaterials = [];
+let lastEntriesSnapshot = [];
 
-/* Helper: short uid */
 function uid(prefix='id'){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
-function nowTs(){ return firebase.firestore.FieldValue.serverTimestamp ? firebase.firestore.FieldValue.serverTimestamp() : new Date(); }
-function toINR(x){ if(!x && x!==0) return '-'; return '₹'+Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 function fmtDate(ts){
   if(!ts) return '-';
   if(ts.toDate) return ts.toDate().toLocaleString('en-IN');
   return new Date(ts.seconds ? ts.seconds*1000 : ts).toLocaleString('en-IN');
 }
+function toINR(x){ if(!x && x!==0) return '-'; return '₹'+Number(x).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 
 /* ========== UI helpers ========== */
 function showModal(html, onBackdropClick){
@@ -304,28 +252,20 @@ document.getElementById('signInBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPass').value;
   if(!email||!pass) return alert('Enter email & password');
-  try{
-    await auth.signInWithEmailAndPassword(email, pass);
-    alert('Signed in');
-  }catch(e){ alert('Sign-in failed: '+e.message); }
+  try{ await auth.signInWithEmailAndPassword(email, pass); alert('Signed in'); }catch(e){ alert('Sign-in failed: '+e.message); }
 });
 document.getElementById('signUpBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPass').value;
   if(!email||!pass) return alert('Enter email & password');
   if(!confirm('Create admin user? This will create a user in Firebase Authentication.')) return;
-  try{
-    await auth.createUserWithEmailAndPassword(email, pass);
-    alert('Admin user created and signed in. Now use Manage to add companies/materials.');
-  }catch(e){ alert('Create failed: '+e.message); }
+  try{ await auth.createUserWithEmailAndPassword(email, pass); alert('Admin user created and signed in.'); }catch(e){ alert('Create failed: '+e.message); }
 });
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
   try{ await auth.signOut(); alert('Signed out'); }catch(e){ alert('Error signing out: '+e.message); }
 });
 
-/* ========== Company & data wiring ========== */
-
-/* Render company list in admin menu */
+/* ========== Company & listeners ========== */
 async function loadCompaniesToMenu(){
   if(!db) return;
   const sels = document.getElementById('companySelect');
@@ -337,7 +277,6 @@ async function loadCompaniesToMenu(){
     opt.textContent = doc.data().name;
     sels.appendChild(opt);
   });
-  // if companies exist and no selection yet, pick the first
   if(!currentCompanyId && sels.options.length) {
     currentCompanyId = sels.options[0].value;
     sels.value = currentCompanyId;
@@ -355,48 +294,41 @@ document.getElementById('companySelect').addEventListener('change', ()=>{
   startCompanyListeners(currentCompanyId);
 });
 
-/* Start listeners for materials & entries of a company */
 function startCompanyListeners(companyId){
-  // clean existing listeners
   if(materialsListener) materialsListener();
   if(entriesListener) entriesListener();
   if(!db) return;
 
   const materialsRef = db.collection('companies').doc(companyId).collection('materials').orderBy('name');
   materialsListener = materialsRef.onSnapshot(snapshot=>{
-    // snapshot.docChanges can be used for granular updates but we re-render
     renderMaterialsSnapshot(snapshot);
-  }, err=>console.error('materials listener err',err));
+  });
 
   const entriesRef = db.collection('companies').doc(companyId).collection('entries').orderBy('createdAt','desc').limit(200);
   entriesListener = entriesRef.onSnapshot(snapshot=>{
-    renderEntriesSnapshot(snapshot);
-  }, err=>console.error('entries listener err',err));
+    lastEntriesSnapshot = [];
+    snapshot.forEach(doc=> { const d=doc.data(); d.id=doc.id; lastEntriesSnapshot.push(d); });
+    // refresh history if open
+    const modalRoot = document.getElementById('modalRoot');
+    if(modalRoot.innerHTML && modalRoot.innerHTML.includes('History —')) openHistoryModal();
+  });
 
-  // load company doc to show lastUpdated
   db.collection('companies').doc(companyId).onSnapshot(doc=>{
     const data = doc.data();
     document.getElementById('lastUpdated').textContent = data && data.updatedAt ? fmtDate(data.updatedAt) : '-';
   });
 }
 
-/* Render materials list (dashboard) */
-let lastMaterials = []; // store last snapshot for use by entry forms
+/* Render materials */
 function renderMaterialsSnapshot(snapshot){
-  const companyNameLabel = document.getElementById('companySelect');
   const area = document.getElementById('dashboardArea');
   area.innerHTML = '';
   lastMaterials = [];
-  // build list
   const mats = [];
   snapshot.forEach(doc=>{
-    const d = doc.data();
-    d.id = doc.id;
-    mats.push(d);
-    lastMaterials.push({ id: doc.id, ...d });
+    const d = doc.data(); d.id = doc.id; mats.push(d); lastMaterials.push(d);
   });
 
-  // Header card
   const header = document.createElement('div'); header.className='card';
   const companyText = document.getElementById('mainCompanyName').textContent || 'Company';
   header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
@@ -405,7 +337,6 @@ function renderMaterialsSnapshot(snapshot){
   </div>`;
   area.appendChild(header);
 
-  // materials grid
   const gridWrap = document.createElement('div'); gridWrap.className='card';
   const grid = document.createElement('div'); grid.className='materials';
   for(const m of mats){
@@ -424,7 +355,6 @@ function renderMaterialsSnapshot(snapshot){
   gridWrap.appendChild(grid);
   area.appendChild(gridWrap);
 
-  // low stock card
   const lows = mats.filter(m => (m.stockKg||0) <= (m.lowStockKg||0));
   if(lows.length){
     const lowCard = document.createElement('div'); lowCard.className='card';
@@ -441,12 +371,10 @@ function renderMaterialsSnapshot(snapshot){
     area.appendChild(lowCard);
   }
 
-  // chart card
   const chartCard = document.createElement('div'); chartCard.className='card';
   chartCard.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">Stock levels</div><div class="tiny muted">kg per material</div></div><div class="chart-wrap" style="margin-top:10px"><canvas id="stockCanvas"></canvas></div>`;
   area.appendChild(chartCard);
 
-  // draw chart
   const labels = mats.map(m=>m.name);
   const data = mats.map(m=>m.stockKg || 0);
   const ctx = document.getElementById('stockCanvas').getContext('2d');
@@ -456,27 +384,7 @@ function renderMaterialsSnapshot(snapshot){
   });
 }
 
-/* Render entries snapshot for history */
-let lastEntriesSnapshot = [];
-function renderEntriesSnapshot(snapshot){
-  lastEntriesSnapshot = [];
-  snapshot.forEach(doc=>{
-    const d = doc.data(); d.id = doc.id; lastEntriesSnapshot.push(d);
-  });
-  // If history modal open, refresh it
-  const modalRoot = document.getElementById('modalRoot');
-  if(modalRoot.innerHTML && modalRoot.innerHTML.includes('History —')) {
-    // Re-open history to refresh
-    openHistoryModal();
-  }
-}
-
-/* ========== Entry add (with transaction) ========== */
-
-/*
-  addEntry(companyId, materialId, type, qtyRaw, unit, pricePerKg, note)
-  - Converts qtyRaw using unit mapping and writes an entry and adjusts material.stockKg inside a transaction.
-*/
+/* ========== Entry add (transaction) ========== */
 async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
   if(!currentCompanyId) return alert('Select a company in admin menu first.');
   if(!auth.currentUser) return alert('Sign in as admin to make changes.');
@@ -491,14 +399,12 @@ async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
       const matSnap = await tx.get(materialDocRef);
       if(!matSnap.exists) throw new Error('Material not found');
       const mat = matSnap.data();
-      // compute qtyKg based on unit mapping
       let qtyKg = qtyRaw;
       if(unit !== 'kg'){
         const map = mat.unitMappings || {};
         if(!map[unit]) throw new Error('Unit mapping not found for this material');
         qtyKg = qtyRaw * map[unit];
       }
-      // create entry doc
       const entryRef = entriesCol.doc();
       const entryData = {
         type,
@@ -512,12 +418,10 @@ async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
         createdBy: auth.currentUser ? auth.currentUser.uid : null
       };
       tx.set(entryRef, entryData);
-      // update stock
       const currentStock = mat.stockKg || 0;
       const newStock = type === 'inflow' ? (currentStock + qtyKg) : (currentStock - qtyKg);
       if(newStock < 0) throw new Error('Not enough stock to remove that much.');
       tx.update(materialDocRef, { stockKg: newStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      // update company updatedAt
       tx.update(companyDocRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     });
     alert('Saved');
@@ -527,10 +431,8 @@ async function addEntry(materialId, type, qtyRaw, unit, pricePerKg, note){
   }
 }
 
-/* ========== Quick inflow/outflow UIs ========== */
-
+/* Quick inflow/outflow UI */
 function openQuickInflow(materialId, materialName){
-  // find the material doc to get unitMappings
   const mat = lastMaterials.find(m => m.id === materialId);
   const mapOptions = mat ? Object.keys(mat.unitMappings || {}).map(u=>`<option value="${u}">${u} (= ${mat.unitMappings[u]} kg)</option>`).join('') : '';
   const html = `<div style="font-weight:700">Add inflow — ${materialName}</div><hr>
@@ -572,8 +474,7 @@ function openQuickOutflow(materialId, materialName){
   };
 }
 
-/* ========== Manage materials modal ========== */
-
+/* Manage modal */
 function openManageModal(){
   showModal(`<div style="font-weight:700">Manage Companies & Materials</div><hr>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
@@ -587,15 +488,12 @@ function openManageModal(){
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="mg_close">Close</button></div>`);
-  // wire actions
   document.getElementById('mg_close').onclick = closeModal;
   document.getElementById('mg_addCompany').onclick = addCompanyFromModal;
   document.getElementById('mg_addMaterial').onclick = addMaterialFromModal;
-  renderManageCompanies();
-  renderManageMaterials();
+  renderManageCompanies(); renderManageMaterials();
 }
 
-/* render companies list in modal */
 async function renderManageCompanies(){
   const el = document.getElementById('mg_companies');
   el.innerHTML = '';
@@ -613,8 +511,6 @@ async function renderManageCompanies(){
     };
     const del = document.createElement('button'); del.className='btn danger'; del.textContent='Delete'; del.onclick = async ()=>{
       if(!confirm('Delete company and all its materials & entries? This cannot be undone.')) return;
-      // delete subcollections carefully (Firestore doesn't support batch delete of subcollections via simple API)
-      // For simplicity: we attempt to delete materials and entries docs under this company
       const matSnap = await db.collection('companies').doc(doc.id).collection('materials').get();
       const batch = db.batch();
       matSnap.forEach(m=> batch.delete(m.ref));
@@ -623,7 +519,7 @@ async function renderManageCompanies(){
       batch.delete(db.collection('companies').doc(doc.id));
       await batch.commit();
       alert('Deleted company and its documents.');
-      renderManageCompanies(); loadCompaniesToMenu(); renderAll();
+      renderManageCompanies(); loadCompaniesToMenu(); renderMaterialsSnapshot(await db.collection('companies').doc(currentCompanyId).collection('materials').get());
     };
     r.appendChild(sel); r.appendChild(del);
     wrap.appendChild(r);
@@ -631,17 +527,15 @@ async function renderManageCompanies(){
   });
 }
 
-/* Add company */
 async function addCompanyFromModal(){
   const name = document.getElementById('mg_newCompany').value.trim();
   if(!name) return alert('Enter name');
-  const docRef = db.collection('companies').doc(); // auto id
+  const docRef = db.collection('companies').doc();
   await docRef.set({ name, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
   document.getElementById('mg_newCompany').value='';
   renderManageCompanies(); loadCompaniesToMenu();
 }
 
-/* render materials for selected company inside modal */
 async function renderManageMaterials(){
   const el = document.getElementById('mg_materials');
   el.innerHTML = '';
@@ -664,7 +558,6 @@ async function renderManageMaterials(){
   });
 }
 
-/* Add material */
 async function addMaterialFromModal(){
   if(!currentCompanyId) return alert('Select company first in admin menu');
   const name = document.getElementById('mg_newMaterial').value.trim();
@@ -682,11 +575,9 @@ async function addMaterialFromModal(){
   renderManageMaterials(); loadCompaniesToMenu();
 }
 
-/* Delete material */
 async function deleteMaterial(materialId){
   if(!confirm('Delete material and its entries?')) return;
   const matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId);
-  // delete entries related to this material
   const entriesSnap = await db.collection('companies').doc(currentCompanyId).collection('entries').where('materialId','==',materialId).get();
   const batch = db.batch();
   entriesSnap.forEach(e=> batch.delete(e.ref));
@@ -696,7 +587,6 @@ async function deleteMaterial(materialId){
   renderManageMaterials(); loadCompaniesToMenu();
 }
 
-/* Material editor dialog */
 async function openMaterialEditorDialog(materialId){
   const matDoc = await db.collection('companies').doc(currentCompanyId).collection('materials').doc(materialId).get();
   const m = matDoc.data();
@@ -708,12 +598,10 @@ async function openMaterialEditorDialog(materialId){
     <div style="display:flex;gap:8px;margin-top:8px"><input id="me_map_name" placeholder="unit name (e.g., rack)" /><input id="me_map_kg" placeholder="kg per unit" type="number" /><button class="btn" id="me_add_map">Add</button></div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="me_cancel">Cancel</button><button class="btn" id="me_save">Save</button></div>`;
   showModal(html);
-  // remove mapping handlers
   document.querySelectorAll('[data-map]').forEach(btn=>{
     btn.addEventListener('click', (ev)=>{
       const key = ev.target.dataset.map;
       delete m.unitMappings[key];
-      // refresh modal
       document.getElementById('modalRoot').innerHTML = '';
       openMaterialEditorDialog(materialId);
     });
@@ -742,12 +630,11 @@ async function openMaterialEditorDialog(materialId){
   };
 }
 
-/* ========== History modal ========== */
+/* History */
 function openHistoryModal(){
   if(!currentCompanyId) return alert('Select company first (admin menu)');
   showModal(`<div style="font-weight:700">History — ${document.getElementById('mainCompanyName').textContent}</div><hr><div id="historyContainer" style="max-height:60vh;overflow:auto"></div><div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn ghost" id="h_close">Close</button></div>`);
   document.getElementById('h_close').onclick = closeModal;
-  // render entries from lastEntriesSnapshot
   const container = document.getElementById('historyContainer');
   const rows = lastEntriesSnapshot.map(e=>{
     const m = lastMaterials.find(mm => mm.id === e.materialId);
@@ -769,14 +656,12 @@ function openHistoryModal(){
   container.innerHTML = `<table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Date</th><th>Type</th><th>Material</th><th>Qty</th><th>Amount</th><th>Note</th><th>Actions</th></tr></thead><tbody>${rows || '<tr><td colspan=7 class="tiny muted">No entries</td></tr>'}</tbody></table>`;
 }
 
-/* Open Edit Entry Dialog */
+/* Edit entry dialog */
 async function openEditEntryDialog(entryId){
-  // fetch entry from Firestore
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
   const eDoc = await entryRef.get();
   if(!eDoc.exists) return alert('Entry not found');
   const e = eDoc.data();
-  // prepare material options
   const matOpts = lastMaterials.map(m=>`<option value="${m.id}" ${m.id===e.materialId?'selected':''}>${m.name}</option>`).join('');
   const matObj = lastMaterials.find(m => m.id === e.materialId) || {};
   const mapOptions = Object.keys(matObj.unitMappings||{}).map(u=>`<option value="${u}">${u} (= ${matObj.unitMappings[u]} kg)</option>`).join('');
@@ -798,7 +683,6 @@ async function openEditEntryDialog(entryId){
     const newPrice = document.getElementById('ee_price').value ? Number(document.getElementById('ee_price').value) : null;
     const newNote = document.getElementById('ee_note').value || '';
     if(newQtyRaw <= 0) return alert('Invalid qty');
-    // Recalculate quantity kg
     let matRef = db.collection('companies').doc(currentCompanyId).collection('materials').doc(newMatId);
     try{
       await db.runTransaction(async (tx)=>{
@@ -810,7 +694,6 @@ async function openEditEntryDialog(entryId){
         const newMatSnap = await tx.get(matRef);
         if(!newMatSnap.exists || !oldMatSnap.exists) throw new Error('Material missing');
 
-        // compute oldQtyKg and newQtyKg
         const computeKg = (matSnap, qtyRaw, unit) => {
           if(unit === 'kg') return qtyRaw;
           const map = (matSnap.data().unitMappings || {});
@@ -820,21 +703,16 @@ async function openEditEntryDialog(entryId){
         const oldQtyKg = old.quantityKg || computeKg(oldMatSnap, old.qtyRaw, old.unit);
         const newQtyKg = computeKg(newMatSnap, newQtyRaw, newUnit);
 
-        // adjust old material stock (reverse old entry)
         const oldMatCurrent = oldMatSnap.data().stockKg || 0;
         const oldMatNewStock = (old.type === 'inflow') ? (oldMatCurrent - oldQtyKg) : (oldMatCurrent + oldQtyKg);
         if(oldMatNewStock < 0) throw new Error('Invalid operation: would make old material negative');
 
-        // adjust new material stock by applying new entry
         const newMatCurrent = newMatSnap.data().stockKg || 0;
         const newMatNewStock = (newType === 'inflow') ? (newMatCurrent + newQtyKg) : (newMatCurrent - newQtyKg);
         if(newMatNewStock < 0) throw new Error('Not enough stock for new material/outflow');
 
-        // apply updates
         tx.update(oldMatRef, { stockKg: oldMatNewStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
         tx.update(matRef, { stockKg: newMatNewStock, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-        // update entry
         tx.update(entryRef, {
           type: newType,
           materialId: newMatId,
@@ -845,10 +723,7 @@ async function openEditEntryDialog(entryId){
           note: newNote,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
-        // update company updatedAt
-        const cmpRef = db.collection('companies').doc(currentCompanyId);
-        tx.update(cmpRef, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        tx.update(db.collection('companies').doc(currentCompanyId), { updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       });
       alert('Entry updated');
       closeModal();
@@ -858,7 +733,7 @@ async function openEditEntryDialog(entryId){
   };
 }
 
-/* Delete entry (adjust stock) */
+/* Delete entry */
 async function deleteEntry(entryId){
   if(!confirm('Delete this entry? This will adjust the material stock accordingly.')) return;
   const entryRef = db.collection('companies').doc(currentCompanyId).collection('entries').doc(entryId);
@@ -883,9 +758,8 @@ async function deleteEntry(entryId){
   }catch(err){ alert('Delete failed: '+err.message); }
 }
 
-/* ========== Export / Import / Seed ========== */
+/* Export / Import / Seed */
 document.getElementById('menuExport').addEventListener('click', async ()=>{
-  // fetch entire data (companies -> materials -> entries) and download
   if(!db) return alert('No DB');
   const full = { companies: {} };
   const cSnap = await db.collection('companies').get();
@@ -902,8 +776,6 @@ document.getElementById('menuExport').addEventListener('click', async ()=>{
   closeDrawer();
   alert('Export started (download).');
 });
-
-/* Import JSON into Firestore (admin only) */
 document.getElementById('menuImport').addEventListener('click', ()=>{
   if(!auth.currentUser) return alert('Sign in as admin to import');
   document.getElementById('fileInput').click();
@@ -915,11 +787,9 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
   try{
     const parsed = JSON.parse(txt);
     if(!confirm('Import will write to Firestore and may overwrite existing data for same doc IDs. Continue?')) return;
-    // iterate companies
     for(const cid of Object.keys(parsed.companies || {})){
       const cObj = parsed.companies[cid];
       await db.collection('companies').doc(cid).set({ name: cObj.name || 'Imported', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      // materials
       for(const mid of Object.keys(cObj.materials || {})){
         await db.collection('companies').doc(cid).collection('materials').doc(mid).set(cObj.materials[mid]);
       }
@@ -933,7 +803,6 @@ document.getElementById('fileInput').addEventListener('change', async (ev)=>{
   }catch(err){ alert('Import failed: '+err.message); }
 });
 
-/* Seed sample data (admin only) */
 document.getElementById('menuSeed').addEventListener('click', async ()=>{
   if(!auth.currentUser) return alert('Sign in as admin to seed data');
   if(!confirm('Seed example companies, materials and sample entries?')) return;
@@ -943,14 +812,10 @@ document.getElementById('menuSeed').addEventListener('click', async ()=>{
     const cmpB = db.collection('companies').doc('adi-manures');
     await cmpB.set({ name: 'Adi Manures', createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
-    // Aditya materials
     await cmpA.collection('materials').doc('urea').set({ name:'Urea', stockKg:12000, unitMappings:{ rack:50 }, lowStockKg:500, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpA.collection('materials').doc('dap').set({ name:'DAP', stockKg:6000, unitMappings:{ rack:100 }, lowStockKg:300, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-
-    // Adi Manures materials
     await cmpB.collection('materials').doc('cow-manure').set({ name:'Cow Manure', stockKg:2000, unitMappings:{ sack:40 }, lowStockKg:150, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
-    // sample entries
     await cmpA.collection('entries').add({ type:'inflow', materialId:'urea', qtyRaw:240, unit:'rack', quantityKg:12000, pricePerKg:5.5, note:'Initial stock', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpA.collection('entries').add({ type:'outflow', materialId:'dap', qtyRaw:20, unit:'rack', quantityKg:2000, pricePerKg:15, note:'Sale to dealer', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     await cmpB.collection('entries').add({ type:'inflow', materialId:'cow-manure', qtyRaw:50, unit:'sack', quantityKg:2000, pricePerKg:1.2, note:'Initial', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -960,7 +825,7 @@ document.getElementById('menuSeed').addEventListener('click', async ()=>{
   }catch(e){ alert('Seed failed: '+e.message); }
 });
 
-/* ========== Drawer & buttons wiring ========== */
+/* Drawer & buttons */
 const drawer = document.getElementById('drawer');
 document.getElementById('hamb').addEventListener('click', ()=> {
   if(window.innerWidth <= 900){ drawer.classList.toggle('open'); } else { drawer.classList.toggle('hide'); }
@@ -972,7 +837,6 @@ function closeDrawer(){ if(window.innerWidth<=900) drawer.classList.remove('open
 
 document.getElementById('btnInflow').addEventListener('click', ()=> {
   if(!currentCompanyId) return alert('Select a company in the admin menu first.');
-  // Open a modal that lists materials to pick (simple)
   const opts = lastMaterials.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   const html = `<div style="font-weight:700">Add Inflow</div><hr>
     <label>Material</label><select id="g_mat">${opts}</select>
@@ -982,27 +846,10 @@ document.getElementById('btnInflow').addEventListener('click', ()=> {
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn" id="g_save">Confirm & Save</button></div>`;
   showModal(html);
   const matSel = document.getElementById('g_mat');
-  function populateUnits(){
-    const mid = matSel.value;
-    const m = lastMaterials.find(x=>x.id===mid);
-    const uSel = document.getElementById('g_unit');
-    uSel.innerHTML = '<option value="kg">kg</option>';
-    for(const k of Object.keys(m.unitMappings || {})){
-      const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o);
-    }
-  }
-  matSel.onchange = populateUnits;
-  populateUnits();
+  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings || {})){ const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o); } }
+  matSel.onchange = populateUnits; populateUnits();
   document.getElementById('g_cancel').onclick = closeModal;
-  document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value;
-    const qty = Number(document.getElementById('g_qty').value);
-    const unit = document.getElementById('g_unit').value;
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
-    const note = document.getElementById('g_note').value || '';
-    await addEntry(mid,'inflow',qty,unit,price,note);
-    closeModal();
-  };
+  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value || ''; await addEntry(mid,'inflow',qty,unit,price,note); closeModal(); };
 });
 
 document.getElementById('btnOutflow').addEventListener('click', ()=> {
@@ -1016,51 +863,23 @@ document.getElementById('btnOutflow').addEventListener('click', ()=> {
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn ghost" id="g_cancel">Cancel</button><button class="btn warn" id="g_save">Confirm & Save</button></div>`;
   showModal(html);
   const matSel = document.getElementById('g_mat');
-  function populateUnits(){
-    const mid = matSel.value;
-    const m = lastMaterials.find(x=>x.id===mid);
-    const uSel = document.getElementById('g_unit');
-    uSel.innerHTML = '<option value="kg">kg</option>';
-    for(const k of Object.keys(m.unitMappings || {})){
-      const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o);
-    }
-  }
-  matSel.onchange = populateUnits;
-  populateUnits();
+  function populateUnits(){ const mid = matSel.value; const m = lastMaterials.find(x=>x.id===mid); const uSel = document.getElementById('g_unit'); uSel.innerHTML = '<option value="kg">kg</option>'; for(const k of Object.keys(m.unitMappings || {})){ const o = document.createElement('option'); o.value = k; o.textContent = `${k} (= ${m.unitMappings[k]} kg)`; uSel.appendChild(o); } }
+  matSel.onchange = populateUnits; populateUnits();
   document.getElementById('g_cancel').onclick = closeModal;
-  document.getElementById('g_save').onclick = async ()=>{
-    const mid = document.getElementById('g_mat').value;
-    const qty = Number(document.getElementById('g_qty').value);
-    const unit = document.getElementById('g_unit').value;
-    const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null;
-    const note = document.getElementById('g_note').value || '';
-    await addEntry(mid,'outflow',qty,unit,price,note);
-    closeModal();
-  };
+  document.getElementById('g_save').onclick = async ()=>{ const mid = document.getElementById('g_mat').value; const qty = Number(document.getElementById('g_qty').value); const unit = document.getElementById('g_unit').value; const price = document.getElementById('g_price').value ? Number(document.getElementById('g_price').value) : null; const note = document.getElementById('g_note').value || ''; await addEntry(mid,'outflow',qty,unit,price,note); closeModal(); };
 });
 
 /* helpers */
-function renderAll(){
-  loadCompaniesToMenu();
-  // mainCompanyName label updated in loadCompaniesToMenu/startCompanyListeners
-}
+function renderAll(){ loadCompaniesToMenu(); }
+if(db){ renderAll(); document.getElementById('statusLabel').textContent = 'Ready'; } else { document.getElementById('statusLabel').textContent = 'No Firebase config'; }
 
-/* init */
-if(db){
-  renderAll();
-  document.getElementById('statusLabel').textContent = 'Ready';
-} else {
-  document.getElementById('statusLabel').textContent = 'No Firebase config';
-}
-
-/* Expose some functions to global for inline onclick usage */
+/* expose some functions */
 window.openQuickInflow = openQuickInflow;
 window.openQuickOutflow = openQuickOutflow;
 window.openMaterialEditor = openMaterialEditorDialog;
 window.openManage = openManageModal;
 window.openHistoryModal = openHistoryModal;
 window.deleteEntry = deleteEntry;
-
 </script>
 </body>
 </html>
