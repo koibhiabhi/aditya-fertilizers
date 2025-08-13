@@ -1,182 +1,89 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Fertilizers Supply Chain Management</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
-  <!-- Firebase SDKs -->
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-  <script defer src="app.js"></script>
+  <meta charset="utf-8"/>
+  <title>Aditya Fertilizers Suppliers — Pro Ledger</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="app.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <!-- ======= EXISTING HEADER / QUICK ACTIONS (unchanged) ======= -->
-  <header class="app-header">
-    <div class="app-title">Fertilizers Supply Chain Management</div>
-    <div class="quick-actions">
-      <button id="qaAddPurchase" class="btn">Add Purchase</button>
-      <button id="qaAddSale" class="btn">Add Sale</button>
-      <button id="qaHistory" class="btn">History</button>
-      <button id="qaManage" class="btn">Manage</button>
-      <!-- NEW: Ledger button (non-destructive) -->
-      <button id="qaLedger" class="btn btn-outline">Ledger</button>
+  <header>
+    <div id="hamb" class="hamburger" title="Menu">
+      <svg width="18" height="12" viewBox="0 0 20 14" fill="none">
+        <rect y="0" width="20" height="2" rx="1" fill="#0f766e"></rect>
+        <rect y="6" width="20" height="2" rx="1" fill="#0f766e"></rect>
+        <rect y="12" width="20" height="2" rx="1" fill="#0f766e"></rect>
+      </svg>
     </div>
-    <div class="status">
-      <span id="lastUpdate">Last remote update: —</span>
+    <div class="title">Aditya Fertilizers — Pro Ledger</div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+      <button id="btnToday" class="btn ghost">Today</button>
+      <div class="tiny">Status: <span id="statusLabel">Initializing…</span></div>
     </div>
   </header>
 
-  <!-- ======= EXISTING MAIN DASHBOARD (leave your current markup) ======= -->
-  <main id="screenDashboard">
-    <!-- Keep all your current dashboard sections exactly as they are -->
-    <!-- … your existing code … -->
-  </main>
+  <main>
+    <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <div style="font-weight:700">Admin Menu</div>
+        <div style="margin-left:auto" class="small muted">Single admin</div>
+      </div>
 
-  <!-- ======= NEW: LEDGER SCREEN (hidden by default) ======= -->
-  <main id="screenLedger" class="hidden">
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Ledger</h2>
-        <div class="row gap">
-          <button id="btnDaybook" class="btn">Daybook (Bulk Entry)</button>
-          <button id="btnExportCsv" class="btn btn-outline">Export CSV</button>
+      <label>Company (select here)</label>
+      <select id="companySelect"></select>
+
+      <div style="margin-top:12px">
+        <div class="menu-item" id="menuDashboard"><div>Dashboard</div><div class="small">Overview</div></div>
+        <div class="menu-item" id="menuHistory"><div>History</div><div class="small">View & edit entries</div></div>
+        <div class="menu-item" id="menuLedger"><div>Ledger</div><div class="small">Tally-style accounts</div></div>
+        <div class="menu-item" id="menuManage"><div>Master Data</div><div class="small">Companies / Materials / Parties</div></div>
+      </div>
+
+      <hr/>
+      <div id="adminInfo"><div style="font-weight:700" id="adminEmail">admin</div><div class="tiny muted">Signed in automatically</div></div>
+      <hr/>
+      <div class="small muted">Advanced</div>
+      <div class="menu-item" id="menuExport"><div>Export data</div><div class="small">Download CSV (Excel)</div></div>
+      <div class="menu-item" id="menuExportLedger"><div>Export ledger</div><div class="small">Party-wise CSV</div></div>
+    </aside>
+
+    <section class="content">
+      <div class="card topbar">
+        <div>
+          <div style="font-weight:700" id="mainCompanyName">Select a company</div>
+          <div class="tiny muted">Company chosen in the menu</div>
+        </div>
+        <div class="qa">
+          <label>Quick actions</label>
+          <div class="controls">
+            <button id="btnPurchase" class="btn">Add Purchase</button>
+            <button id="btnSale" class="btn warn">Add Sale</button>
+            <button id="btnVoucher" class="btn ghost">New Voucher</button>
+            <button id="btnHistory" class="btn ghost">History</button>
+            <button id="btnManage" class="btn ghost">Manage</button>
+          </div>
+        </div>
+        <div style="min-width:180px;text-align:right">
+          <div class="tiny">Last remote update</div>
+          <div id="lastUpdated" style="font-weight:700">—</div>
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="filters">
-        <select id="fCompany"></select>
-        <select id="fMaterial"></select>
-        <select id="fType">
-          <option value="">All types</option>
-          <option value="purchase">Purchase</option>
-          <option value="sale">Sale</option>
-          <option value="adjustment">Adjustment</option>
-        </select>
-        <input type="date" id="fFrom" />
-        <input type="date" id="fTo" />
-        <input type="text" id="fSearch" placeholder="Search company/material/person/notes/price/qty…" />
-        <button id="btnApplyFilters" class="btn">Apply</button>
-        <button id="btnClearFilters" class="btn btn-light">Clear</button>
-      </div>
-
-      <!-- Summary -->
-      <div class="summary row wrap">
-        <div class="chip"><span>Purchases:</span> <strong id="sumPurchases">₹0</strong></div>
-        <div class="chip"><span>Sales:</span> <strong id="sumSales">₹0</strong></div>
-        <div class="chip"><span>Net Cash:</span> <strong id="sumNet">₹0</strong></div>
-        <div class="chip"><span>Profit/Loss:</span> <strong id="sumProfit">₹0</strong></div>
-        <div class="chip"><span>Stock change:</span> <strong id="sumBags">0 bags</strong></div>
-      </div>
-
-      <!-- Ledger Table -->
-      <div class="table-wrap">
-        <table id="tblLedger">
-          <thead>
-            <tr>
-              <th data-s="date">Date</th>
-              <th data-s="company">Company</th>
-              <th data-s="material">Material</th>
-              <th data-s="type">Type</th>
-              <th data-s="bags" class="num">Bags</th>
-              <th data-s="pricePerBag" class="num">₹/bag</th>
-              <th data-s="total" class="num">Total</th>
-              <th data-s="person">Party</th>
-              <th data-s="notes">Notes</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyLedger">
-            <!-- rows injected by JS -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination -->
-      <div class="pagination">
-        <button id="btnPrevPage" class="btn btn-light">Prev</button>
-        <span id="pageInfo">Page 1</span>
-        <button id="btnNextPage" class="btn btn-light">Next</button>
-      </div>
+      <div id="searchBar" class="card" style="display:none"></div>
+      <div id="dashboardArea"></div>
+      <div id="modalRoot"></div>
     </section>
   </main>
 
-  <!-- ======= NEW: DAYBOOK (BULK ENTRY) MODAL ======= -->
-  <div class="modal hidden" id="modalDaybook">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h3>Daybook — Bulk Sales / Purchases</h3>
-        <button class="icon-close" data-close="#modalDaybook">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="row gap">
-          <select id="dbCompany"></select>
-          <input type="date" id="dbDate" />
-          <select id="dbType">
-            <option value="sale">Sale</option>
-            <option value="purchase">Purchase</option>
-          </select>
-        </div>
-        <div id="dbLines"></div>
-        <button id="dbAddLine" class="btn btn-light">+ Add line</button>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-outline" data-close="#modalDaybook">Cancel</button>
-        <button id="dbSave" class="btn">Save all</button>
-      </div>
-    </div>
-  </div>
+  <footer>© All rights reserved by ZeroCaps — Made by Abhinav ❤️</footer>
 
-  <!-- ======= NEW: EDIT/DELETE TRANSACTION MODAL ======= -->
-  <div class="modal hidden" id="modalTxn">
-    <div class="modal-card">
-      <div class="modal-head">
-        <h3>Edit transaction</h3>
-        <button class="icon-close" data-close="#modalTxn">×</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="txId" />
-        <div class="grid2">
-          <label>Company
-            <select id="txCompany"></select>
-          </label>
-          <label>Material
-            <select id="txMaterial"></select>
-          </label>
-          <label>Date & time
-            <input type="datetime-local" id="txDate" />
-          </label>
-          <label>Type
-            <select id="txType">
-              <option value="purchase">Purchase</option>
-              <option value="sale">Sale</option>
-              <option value="adjustment">Adjustment</option>
-            </select>
-          </label>
-          <label>Bags
-            <input type="number" id="txBags" min="0" />
-          </label>
-          <label>₹/bag
-            <input type="number" id="txPrice" step="0.01" min="0" />
-          </label>
-          <label>Party (Bought from / Sold to)
-            <input type="text" id="txPerson" />
-          </label>
-          <label>Notes
-            <input type="text" id="txNotes" />
-          </label>
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-danger" id="txDelete">Delete</button>
-        <div class="spacer"></div>
-        <button class="btn btn-outline" data-close="#modalTxn">Cancel</button>
-        <button class="btn" id="txSave">Save</button>
-      </div>
-    </div>
-  </div>
+  <input id="fileInput" type="file" accept=".json" style="display:none"/>
+  <div id="globalLoader"><div class="loaderBox"><div class="spinner" aria-hidden="true"></div><div><div style="font-weight:700" id="loaderTitle">Working…</div><div class="tiny muted" id="loaderText">Please wait</div></div></div></div>
+
+  <script src="app.js"></script>
 </body>
 </html>
