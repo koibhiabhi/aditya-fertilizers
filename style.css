@@ -1,0 +1,75 @@
+:root {
+  --bg: #f7faf9;
+  --panel: #ffffff;
+  --text: #1b2b2b;
+  --muted: #708080;
+  --brand: #0d7a5f;
+  --brand-2: #0a5a46;
+  --danger: #c62828;
+  --ring: rgba(13, 122, 95, 0.2);
+  --border: #e3ecea;
+  --chip: #f0f7f5;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); background: var(--bg); }
+
+.hidden { display: none !important; }
+.row { display: flex; align-items: center; }
+.wrap { flex-wrap: wrap; }
+.gap { gap: .5rem; }
+.spacer { flex: 1; }
+
+.app-header { display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; padding: 14px 18px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+.app-title { font-weight: 700; }
+.status { color: var(--muted); display: flex; align-items: center; }
+
+.btn { border: 1px solid var(--brand); background: var(--brand); color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+.btn:hover { background: var(--brand-2); border-color: var(--brand-2); }
+.btn-outline { background: transparent; color: var(--brand); }
+.btn-light { background: #fff; color: var(--text); border-color: var(--border); }
+.btn-danger { background: var(--danger); border-color: var(--danger); }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+
+main { padding: 20px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+
+.filters { display: grid; grid-template-columns: repeat(6, minmax(160px, 1fr)) auto auto; gap: .5rem; margin-bottom: 12px; }
+.filters input, .filters select { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+.filters input:focus, .filters select:focus { box-shadow: 0 0 0 3px var(--ring); border-color: var(--brand); }
+
+.summary { margin: 10px 0 14px; gap: .5rem; }
+.chip { background: var(--chip); border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; display: flex; gap: 6px; align-items: baseline; }
+.chip strong { font-variation-settings: "wght" 650; }
+
+.table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead th { position: sticky; top: 0; background: #f7fbfa; border-bottom: 1px solid var(--border); text-align: left; padding: 10px; white-space: nowrap; }
+tbody td { border-top: 1px solid var(--border); padding: 10px; vertical-align: top; }
+.num { text-align: right; }
+tbody tr:hover { background: #fbfefe; }
+.badge { border-radius: 16px; padding: 3px 8px; font-size: 12px; }
+.badge.purchase { background: #e8f5e9; color: #1b5e20; }
+.badge.sale { background: #ffebee; color: #b71c1c; }
+.badge.adjustment { background: #ede7f6; color: #4527a0; }
+.action-mini { display: inline-flex; gap: 6px; }
+.action-mini .mini { font-size: 12px; padding: 4px 8px; }
+
+.pagination { display: flex; gap: .5rem; align-items: center; justify-content: flex-end; margin-top: 10px; }
+
+.modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.2); z-index: 50; }
+.modal-card { width: min(920px, 96vw); background: #fff; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+.modal-head, .modal-foot { display: flex; align-items: center; gap: .5rem; padding: 12px; border-bottom: 1px solid var(--border); }
+.modal-foot { border-top: 1px solid var(--border); border-bottom: none; justify-content: flex-end; }
+.modal-head h3 { margin: 0; }
+.modal-body { padding: 12px; max-height: 70vh; overflow: auto; }
+.icon-close { border: 0; background: transparent; font-size: 22px; cursor: pointer; margin-left: auto; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: .75rem; }
+.grid2 label { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.grid2 input, .grid2 select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+
+.line { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr 1.2fr auto; gap: .5rem; margin-bottom: .5rem; }
+.line input, .line select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; }
+.line .del { background: #fff; border: 1px solid var(--border); }
