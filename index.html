@@ -1,399 +1,308 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Fertilizers Supply Chain Management — Admin</title>
-  <meta name="description" content="Admin panel for fertilizer supply chain: stock (bags), weighted-average costing, ledger (tally-style), history, reports, and exports." />
-  <meta name="robots" content="noindex,nofollow" />
-  <!-- Favicon placeholder -->
-  <link rel="icon" href="favicon.ico" />
-
-  <!-- App styles (external file) -->
-  <link rel="stylesheet" href="app.css">
-
-  <!-- Preload fonts for faster perceived performance (replace with your font family if you have) -->
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" as="style" onload="this.rel='stylesheet'">
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-  </noscript>
-
-  <!-- NOTE: app.js will import Firebase / Chart.js or you may include CDNs there.
-       We intentionally DO NOT include inline JS in this HTML file per your request. -->
+  <meta charset="utf-8"/>
+  <title>Aditya Fertilizers — Pro Ledger</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="color-scheme" content="light"/>
+  <meta name="theme-color" content="#0f766e"/>
+  <link rel="icon" href="data:,">
+  <!-- App styles (all CSS will be in app.css) -->
+  <link rel="stylesheet" href="app.css"/>
 </head>
 
 <body>
-  <!-- Accessibility: skip link -->
-  <a class="skip-link" href="#mainContent">Skip to main content</a>
+  <!-- ===== Header / Topbar ===== -->
+  <header id="appHeader" role="banner" aria-label="Application header">
+    <button id="hamb" class="hamburger" aria-label="Open menu" aria-controls="drawer" aria-expanded="false">
+      <svg width="18" height="12" viewBox="0 0 20 14" fill="none" aria-hidden="true">
+        <rect y="0" width="20" height="2" rx="1"></rect>
+        <rect y="6" width="20" height="2" rx="1"></rect>
+        <rect y="12" width="20" height="2" rx="1"></rect>
+      </svg>
+    </button>
 
-  <!-- Global header -->
-  <header id="globalHeader" role="banner" aria-label="Main header">
-    <div class="header-left">
-      <button id="btnToggleNav" aria-controls="sidebar" aria-expanded="false" aria-label="Toggle menu" class="hamburger" data-action="toggle-nav">
-        <span class="sr-only">Toggle navigation</span>
-        <!-- SVG icon injected via CSS or left here for progressive enhancement -->
-        <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true" focusable="false"><rect width="20" height="2" rx="1"/><rect y="6" width="20" height="2" rx="1"/><rect y="12" width="20" height="2" rx="1"/></svg>
-      </button>
-
-      <div class="branding">
-        <h1 id="appTitle">Fertilizers Supply Chain Management</h1>
-        <p class="visually-hidden" id="appPurpose">Admin dashboard for stock, purchases, sales, ledger and accounting</p>
-      </div>
+    <div class="brand">
+      <div class="title">Aditya Fertilizers — Pro Ledger</div>
+      <div class="subtitle" id="envBadge" aria-live="polite"></div>
     </div>
 
-    <div class="header-right" role="region" aria-label="Header actions">
-      <div class="header-actions">
-        <button id="btnToday" class="btn" data-action="open-today" aria-haspopup="dialog" title="Today status">Today</button>
-        <div id="statusIndicator" aria-live="polite" aria-atomic="true" class="status">Loading…</div>
-      </div>
+    <div class="top-actions">
+      <button id="btnToday" class="btn ghost" type="button">Today</button>
+      <div class="tiny">Status: <span id="statusLabel">Initializing…</span></div>
     </div>
   </header>
 
-  <!-- Page shell -->
-  <div id="pageShell" class="page-shell">
-
-    <!-- Sidebar / navigation -->
-    <nav id="sidebar" class="sidebar" role="navigation" aria-label="Admin menu">
-      <div class="sidebar-top">
-        <div class="sidebar-section">
-          <label for="companySelect" class="label-inline">Company</label>
-          <select id="companySelect" aria-label="Select company" name="companySelect"></select>
-        </div>
-
-        <ul class="nav-list" role="menu" aria-label="Main navigation">
-          <li role="none"><button id="menuDashboard" role="menuitem" class="nav-item" data-route="dashboard">Dashboard</button></li>
-          <li role="none"><button id="menuHistory" role="menuitem" class="nav-item" data-route="history" aria-haspopup="dialog">History</button></li>
-          <li role="none"><button id="menuManage" role="menuitem" class="nav-item" data-route="manage" aria-haspopup="dialog">Manage Companies & Materials</button></li>
-          <li role="none"><button id="menuLedger" role="menuitem" class="nav-item" data-route="ledger" aria-haspopup="dialog">Ledger (Tally)</button></li>
-          <li role="none"><button id="menuExport" role="menuitem" class="nav-item" data-route="export">Export data</button></li>
-        </ul>
+  <!-- ===== Main Layout ===== -->
+  <main id="main" role="main">
+    <!-- ===== Sidebar / Drawer ===== -->
+    <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
+      <div class="drawer-head">
+        <div class="drawer-title">Admin Menu</div>
+        <div class="small muted">Single admin</div>
       </div>
 
-      <div class="sidebar-bottom">
-        <div class="admin-info" aria-hidden="false">
-          <div id="adminEmail" class="muted">admin</div>
-          <div class="tiny muted">Single-admin — safe mode</div>
+      <label for="companySelect">Company (select here)</label>
+      <select id="companySelect" name="companySelect" aria-label="Select company"></select>
+
+      <nav class="drawer-nav" aria-label="Primary">
+        <button class="menu-item" id="menuDashboard" type="button">
+          <div>Dashboard</div><div class="small">Overview</div>
+        </button>
+
+        <button class="menu-item" id="menuDaybook" type="button">
+          <div>Day Book</div><div class="small">Date-wise transactions</div>
+        </button>
+
+        <button class="menu-item" id="menuSales" type="button">
+          <div>Sales Register</div><div class="small">Daily sales entry</div>
+        </button>
+
+        <button class="menu-item" id="menuPurchases" type="button">
+          <div>Purchase Register</div><div class="small">Supplier-wise purchases</div>
+        </button>
+
+        <button class="menu-item" id="menuLedger" type="button">
+          <div>Ledger</div><div class="small">Tally-style accounts</div>
+        </button>
+
+        <button class="menu-item" id="menuParties" type="button">
+          <div>Parties</div><div class="small">Customers / Suppliers</div>
+        </button>
+
+        <button class="menu-item" id="menuVouchers" type="button">
+          <div>Vouchers</div><div class="small">Receipts / Payments / Journal</div>
+        </button>
+
+        <button class="menu-item" id="menuReports" type="button">
+          <div>Reports</div><div class="small">P&L, stock, GST</div>
+        </button>
+
+        <button class="menu-item" id="menuManage" type="button">
+          <div>Master Data</div><div class="small">Companies / Materials / Units</div>
+        </button>
+      </nav>
+
+      <hr/>
+
+      <div id="adminInfo" class="admin-info">
+        <div class="admin-name" id="adminEmail">admin</div>
+        <div class="tiny muted">Signed in automatically</div>
+      </div>
+
+      <hr/>
+
+      <div class="small muted">Advanced</div>
+      <button class="menu-item" id="menuExport" type="button">
+        <div>Export data</div><div class="small">Download CSV (Excel)</div>
+      </button>
+      <button class="menu-item" id="menuExportLedger" type="button">
+        <div>Export ledger</div><div class="small">Party-wise CSV</div>
+      </button>
+    </aside>
+
+    <!-- ===== Content Area ===== -->
+    <section class="content" id="contentRoot">
+      <!-- Top bar inside content -->
+      <div class="card topbar" id="topbarCard">
+        <div class="company-title">
+          <div class="company-name" id="mainCompanyName">Select a company</div>
+          <div class="tiny muted">Company chosen in the menu</div>
+        </div>
+
+        <div class="qa">
+          <label class="qa-label" for="qaGroup">Quick actions</label>
+          <div class="controls" id="qaGroup">
+            <button id="btnPurchase" class="btn" type="button">Add Purchase</button>
+            <button id="btnSale" class="btn warn" type="button">Add Sale</button>
+            <button id="btnVoucher" class="btn ghost" type="button">New Voucher</button>
+            <button id="btnHistory" class="btn ghost" type="button">History</button>
+            <button id="btnManage" class="btn ghost" type="button">Manage</button>
+          </div>
+        </div>
+
+        <div class="last-updated">
+          <div class="tiny">Last remote update</div>
+          <div id="lastUpdated" class="last-updated-value">—</div>
         </div>
       </div>
-    </nav>
 
-    <!-- Main content -->
-    <main id="mainContent" role="main" class="main-content">
-      <!-- Quick actions card -->
-      <section class="card quick-actions" aria-labelledby="quickActionsTitle">
-        <div class="card-left">
-          <h2 id="quickActionsTitle">Quick actions</h2>
-          <p class="tiny muted" id="companyLabel">Select a company to begin</p>
-        </div>
+      <!-- Global search / filters bar -->
+      <div id="searchBar" class="card" role="search" aria-label="Global search" hidden>
+        <form id="searchForm" autocomplete="off">
+          <div class="search-row">
+            <div class="search-field">
+              <label for="searchText">Search</label>
+              <input id="searchText" name="q" placeholder="Party / material / note / voucher no."/>
+            </div>
+            <div class="search-field">
+              <label for="searchFrom">From</label>
+              <input id="searchFrom" name="from" type="date"/>
+            </div>
+            <div class="search-field">
+              <label for="searchTo">To</label>
+              <input id="searchTo" name="to" type="date"/>
+            </div>
+            <div class="search-field">
+              <label for="searchType">Type</label>
+              <select id="searchType" name="type">
+                <option value="">All</option>
+                <option value="purchase">Purchase</option>
+                <option value="sale">Sale</option>
+                <option value="receipt">Receipt</option>
+                <option value="payment">Payment</option>
+                <option value="journal">Journal</option>
+              </select>
+            </div>
+            <div class="search-actions">
+              <button id="btnSearch" class="btn" type="submit">Search</button>
+              <button id="btnSearchReset" class="btn ghost" type="button">Reset</button>
+            </div>
+          </div>
+        </form>
+      </div>
 
-        <div class="card-actions" role="toolbar" aria-label="Quick actions">
-          <button id="btnPurchase" class="btn" data-action="open-purchase">Add Purchase</button>
-          <button id="btnSale" class="btn warn" data-action="open-sale">Add Sale</button>
-          <button id="btnHistory" class="btn ghost" data-action="open-history">History</button>
-          <button id="btnManage" class="btn ghost" data-action="open-manage">Manage</button>
-          <button id="btnLedger" class="btn ghost" data-action="open-ledger">Ledger</button>
-        </div>
+      <!-- ===== Routed / Swappable Areas (JS will render) ===== -->
+      <div id="dashboardArea" class="route" data-route="dashboard" aria-live="polite"></div>
+      <div id="daybookArea" class="route" data-route="daybook" hidden></div>
+      <div id="salesArea" class="route" data-route="sales" hidden></div>
+      <div id="purchasesArea" class="route" data-route="purchases" hidden></div>
+      <div id="ledgerArea" class="route" data-route="ledger" hidden></div>
+      <div id="partiesArea" class="route" data-route="parties" hidden></div>
+      <div id="vouchersArea" class="route" data-route="vouchers" hidden></div>
+      <div id="manageArea" class="route" data-route="manage" hidden></div>
+      <div id="reportsArea" class="route" data-route="reports" hidden></div>
 
-        <div class="card-meta" aria-hidden="true">
-          <div class="tiny muted">Last remote update: <span id="lastUpdated">—</span></div>
-        </div>
-      </section>
+      <!-- Modals / Drawers mount point -->
+      <div id="modalRoot" aria-live="assertive" aria-relevant="additions"></div>
+    </section>
+  </main>
 
-      <!-- Materials / Dashboard area (populated by JS) -->
-      <section id="dashboardArea" aria-label="Dashboard area" class="dashboard-area">
-        <!-- JS will render: material cards grid, chart, total inventory value, report controls, etc. -->
-      </section>
-
-      <!-- Placeholder for modals and dynamic content (templates are below) -->
-      <div id="modalRoot" aria-live="polite"></div>
-    </main>
-  </div>
-
-  <!-- Footer -->
-  <footer role="contentinfo" class="site-footer">
-    <div class="footer-inner">
-      <div>© All rights reserved — zeroCaps</div>
-      <div class="tiny muted">Admin panel</div>
-    </div>
+  <!-- ===== Footer ===== -->
+  <footer id="appFooter" role="contentinfo">
+    © All rights reserved by ZeroCaps — Made by Abhinav ❤️
   </footer>
 
-  <!-- No-JS warning -->
-  <noscript>
-    <div class="noscript-warning" role="alert">
-      JavaScript is required for this application to function. Please enable JavaScript in your browser.
-    </div>
-  </noscript>
+  <!-- ===== Hidden inputs & global loader ===== -->
+  <input id="fileInput" type="file" accept=".json" hidden/>
 
-  <!--
-    TEMPLATES
-    - These templates are pure HTML fragments. app.js will use document.importNode or cloneNode
-      to render them into modalRoot or other containers. Keep IDs unique and prefer data-* attributes.
-  -->
-
-  <!-- Material card template (used to render each material in dashboard) -->
-  <template id="tplMaterialCard">
-    <article class="mat-card" role="article" aria-label="Material card">
-      <header class="mat-card-header">
-        <h3 class="mat-name" data-field="name">Material name</h3>
-        <div class="tiny muted" data-field="kgPerBag">Kg per bag</div>
-      </header>
-
-      <div class="mat-body">
-        <div class="mat-qty" data-field="stockBags">0 bags</div>
-        <div class="mat-details small">
-          <span data-field="pricePerBag">—</span> · <span data-field="stockValue">—</span>
-        </div>
-
-        <div class="mat-actions">
-          <button class="btn" data-action="purchase">Add Purchase</button>
-          <button class="btn warn" data-action="sale">Add Sale</button>
-          <button class="btn ghost" data-action="editMaterial">Edit</button>
-        </div>
+  <div id="globalLoader" aria-hidden="true">
+    <div class="loaderBox" role="alert" aria-busy="true">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <div class="loaderTitle" id="loaderTitle">Working…</div>
+        <div class="loaderText tiny muted" id="loaderText">Please wait</div>
       </div>
-    </article>
+    </div>
+  </div>
+
+  <!-- ===== Templates (pure HTML, JS clones & fills them) ===== -->
+
+  <!-- Template: Empty State -->
+  <template id="tpl-empty">
+    <div class="card tiny muted">No data to display.</div>
   </template>
 
-  <!-- History entry template -->
-  <template id="tplHistoryEntry">
-    <div class="entry-card" role="listitem" aria-label="Transaction entry">
+  <!-- Template: Material card (dashboard) -->
+  <template id="tpl-material-card">
+    <div class="mat-card">
+      <div class="mat-name"></div>
+      <div class="mat-qty"></div>
+      <div class="mat-meta tiny muted"></div>
+      <div class="mat-actions">
+        <button class="btn mat-buy" type="button">Add Purchase</button>
+        <button class="btn warn mat-sell" type="button">Add Sale</button>
+        <button class="btn ghost mat-edit" type="button">Edit</button>
+      </div>
+      <div class="mat-split tiny muted">
+        <span class="mat-price"></span>
+        <span class="mat-stockval"></span>
+      </div>
+      <div class="mat-sales tiny muted"></div>
+    </div>
+  </template>
+
+  <!-- Template: Ledger row (party ledger) -->
+  <template id="tpl-ledger-row">
+    <tr>
+      <td class="led-date"></td>
+      <td class="led-vno"></td>
+      <td class="led-desc"></td>
+      <td class="led-debit amount"></td>
+      <td class="led-credit amount"></td>
+      <td class="led-balance amount"></td>
+      <td class="led-actions">
+        <button class="btn ghost led-edit" type="button">Edit</button>
+        <button class="btn danger led-delete" type="button">Delete</button>
+      </td>
+    </tr>
+  </template>
+
+  <!-- Template: Daybook card -->
+  <template id="tpl-daybook-card">
+    <div class="entry-card">
       <div class="entry-left">
-        <div class="entry-badge" data-field="type">Type</div>
-        <div class="entry-info">
-          <div class="entry-title" data-field="material">Material</div>
-          <div class="mini" data-field="meta">meta</div>
+        <span class="badge"></span>
+        <div class="entry-core">
+          <div class="entry-title"></div>
+          <div class="entry-meta tiny muted"></div>
+          <div class="entry-note tiny muted"></div>
         </div>
       </div>
       <div class="entry-right">
-        <div class="mini" data-field="date">date</div>
+        <div class="entry-time tiny muted"></div>
         <div class="entry-actions">
-          <button class="btn ghost" data-action="edit">Edit</button>
-          <button class="btn danger" data-action="delete">Delete</button>
+          <button class="btn ghost entry-edit" type="button">Edit</button>
+          <button class="btn danger entry-delete" type="button">Delete</button>
         </div>
       </div>
     </div>
   </template>
 
-  <!-- Ledger modal template: Tally-style master ledger (filter controls + table) -->
-  <template id="tplLedgerModal">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ledgerModalTitle">
-      <div class="modal-header">
-        <h2 id="ledgerModalTitle">Ledger — Master Book</h2>
-        <p class="tiny muted">Search, filter, edit and export transactions across companies</p>
+  <!-- Template: Party row -->
+  <template id="tpl-party-row">
+    <tr>
+      <td class="pty-name"></td>
+      <td class="pty-type"></td>
+      <td class="pty-phone"></td>
+      <td class="pty-gst"></td>
+      <td class="pty-balance amount"></td>
+      <td class="pty-actions">
+        <button class="btn ghost pty-ledger" type="button">Open Ledger</button>
+        <button class="btn ghost pty-edit" type="button">Edit</button>
+        <button class="btn danger pty-delete" type="button">Delete</button>
+      </td>
+    </tr>
+  </template>
+
+  <!-- Template: Voucher row -->
+  <template id="tpl-voucher-row">
+    <tr>
+      <td class="vch-date"></td>
+      <td class="vch-no"></td>
+      <td class="vch-type"></td>
+      <td class="vch-party"></td>
+      <td class="vch-amount amount"></td>
+      <td class="vch-actions">
+        <button class="btn ghost vch-view" type="button">View</button>
+        <button class="btn ghost vch-edit" type="button">Edit</button>
+        <button class="btn danger vch-delete" type="button">Delete</button>
+      </td>
+    </tr>
+  </template>
+
+  <!-- Template: Tab header block (Reports) -->
+  <template id="tpl-report-block">
+    <div class="report-block">
+      <div class="report-head">
+        <div class="report-title"></div>
+        <div class="report-sub tiny muted"></div>
       </div>
-
-      <div class="ledger-controls" role="region" aria-label="Ledger controls">
-        <div class="ledger-search">
-          <label for="ledgerSearchInput" class="visually-hidden">Search ledger</label>
-          <input id="ledgerSearchInput" type="search" placeholder="Search by company, material, party, note, invoice..." aria-label="Search ledger" />
-          <button id="ledgerSearchBtn" class="btn">Search</button>
-          <button id="ledgerClearSearch" class="btn ghost">Clear</button>
-        </div>
-
-        <div class="ledger-filters">
-          <label class="visually-hidden" for="ledgerCompanyFilter">Company</label>
-          <select id="ledgerCompanyFilter" aria-label="Filter by company">
-            <option value="">All companies</option>
-          </select>
-
-          <label class="visually-hidden" for="ledgerMaterialFilter">Material</label>
-          <select id="ledgerMaterialFilter" aria-label="Filter by material">
-            <option value="">All materials</option>
-          </select>
-
-          <label class="visually-hidden" for="ledgerTypeFilter">Type</label>
-          <select id="ledgerTypeFilter" aria-label="Filter by type">
-            <option value="">All types</option>
-            <option value="purchase">Purchase</option>
-            <option value="sale">Sale</option>
-          </select>
-
-          <label class="visually-hidden" for="ledgerFrom">From date</label>
-          <input id="ledgerFrom" type="date" aria-label="Filter from date" />
-
-          <label class="visually-hidden" for="ledgerTo">To date</label>
-          <input id="ledgerTo" type="date" aria-label="Filter to date" />
-
-          <button id="ledgerApplyFilter" class="btn" aria-pressed="false">Apply</button>
-        </div>
-
-        <div class="ledger-quick-actions">
-          <button id="ledgerAddDailySale" class="btn">Add Daily Sales</button>
-          <button id="ledgerExport" class="btn ghost">Export CSV</button>
-          <button id="ledgerToggleSummary" class="btn ghost" aria-pressed="false">Toggle Summary</button>
-        </div>
-      </div>
-
-      <div class="ledger-summary card" id="ledgerSummaryBox" aria-hidden="true">
-        <div id="ledgerSummaryContent" class="mini muted">No summary — select a date range and press Apply.</div>
-      </div>
-
-      <div class="ledger-table-wrap" role="region" aria-label="Ledger table">
-        <table id="ledgerTable" class="ledger-table" role="table" aria-describedby="ledgerTableDesc">
-          <caption id="ledgerTableDesc" class="visually-hidden">Master ledger table showing date, company, material, type, quantity, price, total, party and notes.</caption>
-          <thead>
-            <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Company</th>
-              <th scope="col">Material</th>
-              <th scope="col">Type</th>
-              <th scope="col">Bags</th>
-              <th scope="col">Price/Bag</th>
-              <th scope="col">Total</th>
-              <th scope="col">Party</th>
-              <th scope="col">Note</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="ledgerTbody" role="rowgroup">
-            <!-- Managed by app.js -->
-          </tbody>
-        </table>
-      </div>
-
-      <div class="ledger-pager" aria-label="Ledger pagination">
-        <div id="ledgerCount" class="mini muted">0 records</div>
-        <div class="pager-actions">
-          <button id="ledgerPrevPage" class="btn ghost" aria-disabled="true">Prev</button>
-          <button id="ledgerNextPage" class="btn ghost" aria-disabled="true">Next</button>
-        </div>
-      </div>
-
-      <div class="modal-actions" style="text-align:right;margin-top:12px">
-        <button id="ledgerCloseBtn" class="btn ghost">Close</button>
-      </div>
+      <div class="report-body"></div>
     </div>
   </template>
 
-  <!-- History modal template -->
-  <template id="tplHistoryModal">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
-      <div class="modal-header">
-        <h2 id="historyModalTitle">History — <span id="historyCompanyName">Company</span></h2>
-      </div>
-
-      <div id="historyContainer" class="history-container" role="region" aria-live="polite">
-        <!-- Entries appended here by app.js -->
-      </div>
-
-      <div class="modal-actions" style="text-align:right;margin-top:12px">
-        <button id="historyCloseBtn" class="btn ghost">Close</button>
-      </div>
-    </div>
-  </template>
-
-  <!-- Material edit template -->
-  <template id="tplMaterialEdit">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="matEditTitle">
-      <header><h2 id="matEditTitle">Edit material</h2></header>
-
-      <form id="matEditForm" autocomplete="off">
-        <div class="grid">
-          <label for="matName">Name</label>
-          <input id="matName" name="name" required />
-
-          <label for="matLow">Low stock threshold (bags)</label>
-          <input id="matLow" name="lowStockBags" type="number" min="0" />
-
-          <label for="matKg">Kg per bag</label>
-          <input id="matKg" name="kgPerBag" type="number" min="0" />
-
-          <label for="matPrice">Default price per bag (optional)</label>
-          <input id="matPrice" name="pricePerBag" type="number" step="0.01" />
-        </div>
-
-        <div style="text-align:right;margin-top:12px">
-          <button type="button" class="btn ghost" data-action="cancel">Cancel</button>
-          <button type="submit" class="btn">Save</button>
-        </div>
-      </form>
-    </div>
-  </template>
-
-  <!-- Purchase / Sale modal template (reused for quick add) -->
-  <template id="tplAddEntry">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addEntryTitle">
-      <header><h2 id="addEntryTitle">Add Entry</h2></header>
-
-      <form id="addEntryForm" autocomplete="off">
-        <div class="grid">
-          <label for="entryMaterial">Material</label>
-          <select id="entryMaterial" name="materialId" required></select>
-
-          <label for="entryType">Type</label>
-          <select id="entryType" name="type" required>
-            <option value="purchase">Purchase</option>
-            <option value="sale">Sale</option>
-          </select>
-
-          <label for="entryBags">Number of bags</label>
-          <input id="entryBags" name="bags" type="number" min="0.01" step="0.01" required />
-
-          <label for="entryPrice">Price per bag</label>
-          <input id="entryPrice" name="pricePerBag" type="number" step="0.01" />
-
-          <label for="entryParty">Party (Bought from / Sold to)</label>
-          <input id="entryParty" name="party" />
-
-          <label for="entryNote">Note</label>
-          <input id="entryNote" name="note" />
-        </div>
-
-        <div style="text-align:right;margin-top:12px">
-          <button type="button" class="btn ghost" data-action="cancel">Cancel</button>
-          <button type="submit" class="btn">Save</button>
-        </div>
-      </form>
-    </div>
-  </template>
-
-  <!-- Today modal template -->
-  <template id="tplTodayModal">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="todayTitle">
-      <header><h2 id="todayTitle">Today — <span id="todayCompanyName">Company</span></h2></header>
-
-      <div id="todaySummary" class="grid">
-        <!-- JS will populate today's purchases, sales, profit, top stocks -->
-      </div>
-
-      <div style="text-align:right;margin-top:12px">
-        <button id="todayCloseBtn" class="btn ghost">Close</button>
-      </div>
-    </div>
-  </template>
-
-  <!-- Export / CSV templates -->
-  <template id="tplExportConfirm">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
-      <header><h2 id="exportTitle">Export data</h2></header>
-      <div class="card">
-        <p class="tiny muted">Export current selection as CSV for accounting / Excel.</p>
-        <div class="form-row">
-          <label for="exportFrom">From</label>
-          <input id="exportFrom" type="date" />
-          <label for="exportTo">To</label>
-          <input id="exportTo" type="date" />
-        </div>
-        <div style="text-align:right;margin-top:12px">
-          <button data-action="cancel" class="btn ghost">Cancel</button>
-          <button id="exportConfirmBtn" class="btn">Export CSV</button>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- Global loader (app.js will toggle) -->
-  <div id="globalLoader" aria-hidden="true" class="global-loader" role="status" aria-live="polite">
-    <div class="loaderBox" role="presentation">
-      <div class="spinner" aria-hidden="true"></div>
-      <div class="loaderText">
-        <div id="loaderTitle">Working…</div>
-        <div id="loaderMessage" class="tiny muted">Please wait</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Link to JS last so HTML loads first, app.js will wire everything up.
-       app.js must import Firebase / Chart.js or include relevant CDNs at top of that file. -->
-  <script src="app.js" defer></script>
+  <!-- ===== App script (all JS logic lives in app.js) ===== -->
+  <script type="module" src="app.js"></script>
 </body>
 </html>
