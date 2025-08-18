@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Aditya Fertilizers Suppliers</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
+  <!-- Charts + Firebase (compat to match your current app) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div id="hamb" class="hamburger" title="Menu">
+    <svg width="18" height="12" viewBox="0 0 20 14" fill="none">
+      <rect y="0" width="20" height="2" rx="1" fill="#0f766e"></rect>
+      <rect y="6" width="20" height="2" rx="1" fill="#0f766e"></rect>
+      <rect y="12" width="20" height="2" rx="1" fill="#0f766e"></rect>
+    </svg>
+  </div>
+
+  <div>
+    <div class="title">Aditya Fertilizers</div>
+  </div>
+
+  <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center">
+      <!-- Global quick search -->
+      <input id="globalSearch" placeholder="Search company/party/material/entry…" style="min-width:240px"/>
+      <button id="btnGlobalSearch" class="btn ghost" title="Search everything">Search</button>
+    </div>
+    <button id="btnToday" class="btn ghost" title="Today’s snapshot">Today</button>
+    <div class="tiny">Status: <span id="statusLabel">Initializing...</span></div>
+  </div>
+</header>
+
+<main>
+  <aside id="drawer" class="drawer hide" role="navigation" aria-label="Admin menu">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <div style="font-weight:700">Admin Menu</div>
+      <div style="margin-left:auto" class="small muted">Single admin</div>
+    </div>
+
+    <label>Company (select here)</label>
+    <select id="companySelect"></select>
+
+    <div style="margin-top:12px">
+      <div class="menu-item" id="menuDashboard">
+        <div>Dashboard</div><div class="small">Overview</div>
+      </div>
+
+      <div class="menu-item" id="menuHistory">
+        <div>History</div><div class="small">View & edit entries</div>
+      </div>
+
+      <!-- NEW: Parties directory (suppliers/customers) -->
+      <div class="menu-item" id="menuParties">
+        <div>Parties</div><div class="small">Suppliers & Customers</div>
+      </div>
+
+      <!-- NEW: Ledger (Tally-style) -->
+      <div class="menu-item" id="menuLedger">
+        <div>Ledger</div><div class="small">AR/AP, balances, statements</div>
+      </div>
+
+      <!-- Manage materials/companies stays as-is -->
+      <div class="menu-item" id="menuManage">
+        <div>Manage Companies & Materials</div><div class="small">Add / edit</div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <div id="adminInfo">
+      <div style="font-weight:700" id="adminEmail">admin</div>
+      <div class="tiny muted">Signed in automatically</div>
+    </div>
+
+    <hr/>
+
+    <div class="small muted">Advanced</div>
+    <div class="menu-item" id="menuExport">
+      <div>Export data</div><div class="small">Download CSV (Excel)</div>
+    </div>
+  </aside>
+
+  <section class="content">
+    <div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700" id="mainCompanyName">Select a company</div>
+        <div class="tiny muted">Company chosen in the menu</div>
+      </div>
+
+      <div style="flex:1">
+        <label>Quick actions</label>
+        <div class="controls">
+          <button id="btnPurchase" class="btn">Add Purchase</button>
+          <button id="btnSale" class="btn warn">Add Sale</button>
+
+          <!-- NEW: Payments (Money In / Out) -->
+          <button id="btnPaymentIn" class="btn ghost" title="Money received from customer">Payment In</button>
+          <button id="btnPaymentOut" class="btn ghost" title="Money paid to supplier">Payment Out</button>
+
+          <button id="btnHistory" class="btn ghost">History</button>
+          <button id="btnManage" class="btn ghost">Manage</button>
+
+          <!-- NEW: Open Ledger & Parties from quick actions -->
+          <button id="btnOpenLedger" class="btn ghost">Ledger</button>
+          <button id="btnOpenParties" class="btn ghost">Parties</button>
+        </div>
+      </div>
+
+      <div style="min-width:180px;text-align:right">
+        <div class="tiny">Last remote update</div>
+        <div id="lastUpdated" style="font-weight:700">---</div>
+      </div>
+    </div>
+
+    <!-- Main dynamic area -->
+    <div id="dashboardArea"></div>
+
+    <!-- NEW: Dedicated containers (script will swap content/modals as needed) -->
+    <div id="ledgerArea" style="display:none"></div>
+    <div id="partiesArea" style="display:none"></div>
+    <div id="searchResultsArea" style="display:none"></div>
+
+    <!-- Modal root -->
+    <div id="modalRoot"></div>
+  </section>
+</main>
+
+<footer>© All rights reserved by ZeroCaps --- Made by Abhinav ❤️</footer>
+
+<input id="fileInput" type="file" accept=".json" style="display:none"/>
+
+<!-- GLOBAL LOADER -->
+<div id="globalLoader">
+  <div class="loaderBox">
+    <div class="spinner" aria-hidden="true"></div>
+    <div>
+      <div style="font-weight:700" id="loaderTitle">Working...</div>
+      <div class="tiny muted" id="loaderText">Please wait</div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
